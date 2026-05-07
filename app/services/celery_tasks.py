@@ -66,9 +66,10 @@ async def _run_pipeline_async(task_id: str):
     # 3D visualization (CPU-bound, run in thread)
     loop = asyncio.get_running_loop()
     await DataService.update_task_status_nothrow(task_id, TaskStatus.processing, 60)
-    anomaly_keys = {(round(a["lon"], 6), round(a["lat"], 6), a["depth"]) for a in anomalies}
+    anomaly_points = [{"lon": a["lon"], "lat": a["lat"], "depth": a["depth"],
+                       "indicator": a["indicator"], "value": a["value"]} for a in anomalies]
     for ind in ["chlorophyll", "dissolved_oxygen", "temperature", "ph", "turbidity"]:
-        html = await loop.run_in_executor(None, generate_3d_html, rows, ind, anomaly_keys)
+        html = await loop.run_in_executor(None, generate_3d_html, rows, ind, anomaly_points)
         os.makedirs(settings.THREED_DIR, exist_ok=True)
         with open(os.path.join(settings.THREED_DIR, f"{task_id}_{ind}.html"), "w", encoding="utf-8") as f:
             f.write(html)

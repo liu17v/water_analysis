@@ -83,11 +83,14 @@ async def get_visualization(
     if not grid:
         raise BusinessException(msg=f"深度 {d}m 无插值数据", code=404)
 
-    result = await db.execute(
-        select(AnomalyRecord.lon, AnomalyRecord.lat, AnomalyRecord.depth,
-               AnomalyRecord.indicator, AnomalyRecord.value)
+    short = {"chlorophyll": "chl", "dissolved_oxygen": "odo",
+             "temperature": "temp", "ph": "ph", "turbidity": "turb"}.get(indicator)
+    anomaly_query = select(AnomalyRecord.lon, AnomalyRecord.lat, AnomalyRecord.depth,
+                           AnomalyRecord.indicator, AnomalyRecord.value) \
         .where(AnomalyRecord.task_id == task_id)
-    )
+    if short:
+        anomaly_query = anomaly_query.where(AnomalyRecord.indicator == short)
+    result = await db.execute(anomaly_query)
     anomaly_points = [
         {"lon": r.lon, "lat": r.lat, "depth": r.depth, "indicator": r.indicator, "value": r.value}
         for r in result.fetchall()
@@ -128,11 +131,14 @@ async def get_contour_html(
     if not grid:
         raise BusinessException(msg=f"深度 {d}m 无插值数据", code=404)
 
-    result = await db.execute(
-        select(AnomalyRecord.lon, AnomalyRecord.lat, AnomalyRecord.depth,
-               AnomalyRecord.indicator, AnomalyRecord.value)
+    short = {"chlorophyll": "chl", "dissolved_oxygen": "odo",
+             "temperature": "temp", "ph": "ph", "turbidity": "turb"}.get(indicator)
+    anomaly_query = select(AnomalyRecord.lon, AnomalyRecord.lat, AnomalyRecord.depth,
+                           AnomalyRecord.indicator, AnomalyRecord.value) \
         .where(AnomalyRecord.task_id == task_id)
-    )
+    if short:
+        anomaly_query = anomaly_query.where(AnomalyRecord.indicator == short)
+    result = await db.execute(anomaly_query)
     anomaly_points = [
         {"lon": r.lon, "lat": r.lat, "depth": r.depth, "indicator": r.indicator, "value": r.value}
         for r in result.fetchall()
@@ -289,6 +295,9 @@ async def get_depth_profile_html(
         height=500, margin=dict(l=60, r=30, t=50, b=50), hovermode="x unified",
     )
     return HTMLResponse(content=fig.to_html(full_html=True, include_plotlyjs="cdn"))
+
+
+@task_router.get("/api/task/{task_id}/raw_data", summary="获取原始数据预览")
 async def get_raw_data_preview(
     task_id: str,
     page: int = Query(1, ge=1),

@@ -28,6 +28,11 @@ INDICATOR_LABELS = {
     "turbidity": ("浊度", "NTU"),
 }
 
+# Short codes used in anomaly records → labels for hover display
+INDICATOR_SHORT_MAP = {
+    "chl": "叶绿素", "odo": "溶解氧", "temp": "水温", "ph": "pH", "turb": "浊度",
+}
+
 
 def contour_html(grid: dict, indicator: str, depth: float, anomaly_points=None) -> str:
     label, unit = INDICATOR_LABELS.get(indicator, (indicator, ""))
@@ -42,12 +47,24 @@ def contour_html(grid: dict, indicator: str, depth: float, anomaly_points=None) 
         hovertemplate=f"Lon=%{{x:.4f}}<br>Lat=%{{y:.4f}}<br>{label}=%{{z:.2f}} {unit}<extra></extra>",
     ))
     if anomaly_points:
-        fig.add_trace(go.Scatter(
-            x=[p["lon"] for p in anomaly_points],
-            y=[p["lat"] for p in anomaly_points],
-            mode="markers", marker=dict(color="red", size=10, symbol="x"),
-            name="异常点",
-        ))
+        short_code = {"chlorophyll": "chl", "dissolved_oxygen": "odo",
+                      "temperature": "temp", "ph": "ph", "turbidity": "turb"}.get(indicator, indicator)
+        filtered = [p for p in anomaly_points if p.get("indicator") == short_code]
+        if filtered:
+            # Split by value sign for visual distinction
+            hover_texts = [
+                f"{INDICATOR_SHORT_MAP.get(p.get('indicator',''), p.get('indicator',''))}: {p.get('value','?')}"
+                for p in filtered
+            ]
+            fig.add_trace(go.Scatter(
+                x=[p["lon"] for p in filtered],
+                y=[p["lat"] for p in filtered],
+                mode="markers",
+                marker=dict(color="red", size=10, symbol="x", line=dict(width=1, color="darkred")),
+                text=hover_texts,
+                hovertemplate="<b>⚠ 异常点</b><br>%{text}<br>Lon=%{x:.4f}<br>Lat=%{y:.4f}<extra></extra>",
+                name="异常点",
+            ))
     fig.update_layout(
         title=dict(text=f"{label} 等值线图 — 深度 {depth}m"),
         xaxis=dict(title="经度"),
@@ -111,14 +128,24 @@ def volume_html(volume: dict, indicator: str, anomaly_points=None) -> str:
         colorbar=dict(title=dict(text=f"{label} ({unit})" if unit else label)),
     ))
     if anomaly_points:
-        fig.add_trace(go.Scatter3d(
-            x=[p["lon"] for p in anomaly_points],
-            y=[p["lat"] for p in anomaly_points],
-            z=[p["depth"] for p in anomaly_points],
-            mode="markers",
-            marker=dict(color="red", size=5, symbol="x"),
-            name="异常点",
-        ))
+        short_code = {"chlorophyll": "chl", "dissolved_oxygen": "odo",
+                      "temperature": "temp", "ph": "ph", "turbidity": "turb"}.get(indicator, indicator)
+        filtered = [p for p in anomaly_points if p.get("indicator") == short_code]
+        if filtered:
+            hover_texts = [
+                f"{INDICATOR_SHORT_MAP.get(p.get('indicator',''), p.get('indicator',''))}: {p.get('value','?')}"
+                for p in filtered
+            ]
+            fig.add_trace(go.Scatter3d(
+                x=[p["lon"] for p in filtered],
+                y=[p["lat"] for p in filtered],
+                z=[p["depth"] for p in filtered],
+                mode="markers",
+                marker=dict(color="red", size=5, symbol="x", line=dict(width=1, color="darkred")),
+                text=hover_texts,
+                hovertemplate="<b>⚠ 异常点</b><br>%{text}<br>Lon=%{x:.4f}<br>Lat=%{y:.4f}<br>Depth=%{z}m<extra></extra>",
+                name="异常点",
+            ))
     fig.update_layout(
         title=dict(text=f"{label} 三维体渲染"),
         scene=dict(
@@ -133,30 +160,22 @@ def volume_html(volume: dict, indicator: str, anomaly_points=None) -> str:
     return fig.to_html(full_html=True, include_plotlyjs="cdn")
 
 
-def generate_3d_html(rows, indicator, anomaly_lookup=None) -> str:
+def generate_3d_html(rows, indicator, anomaly_points=None) -> str:
     """生成3D体渲染HTML（兼容旧接口）"""
     from app.services.interpolation import interpolate_all_layers
 
     grids = interpolate_all_layers(rows, indicator)
     if not grids or len(grids) < 2:
-        return _fallback_scatter(rows, indicator, anomaly_lookup)
+        return _fallback_scatter(rows, indicator, anomaly_points)
 
     volume = build_volume(grids, indicator)
     if not volume:
-        return _fallback_scatter(rows, indicator, anomaly_lookup)
+        return _fallback_scatter(rows, indicator, anomaly_points)
 
-    anomaly_points = []
-    if anomaly_lookup:
-        for r in rows:
-            key = (round(r.lon, 6), round(r.lat, 6), r.depth_m)
-            if key in anomaly_lookup:
-                anomaly_points.append({
-                    "lon": r.lon, "lat": r.lat, "depth": r.depth_m,
-                })
     return volume_html(volume, indicator, anomaly_points[:200] if anomaly_points else None)
 
 
-def _fallback_scatter(rows, indicator, anomaly_lookup=None) -> str:
+def _fallback_scatter(rows, indicator, anomaly_points=None) -> str:
     """深度层不足时的散点回退方案"""
     label, unit = INDICATOR_LABELS.get(indicator, (indicator, ""))
     lons = [r.lon for r in rows if getattr(r, indicator) is not None]
@@ -175,6 +194,26 @@ def _fallback_scatter(rows, indicator, anomaly_lookup=None) -> str:
         ),
         hovertemplate=f"Lon=%{{x:.4f}}<br>Lat=%{{y:.4f}}<br>Depth=%{{z}}m<br>{label}=%{{marker.color:.2f}}<extra></extra>",
     ))
+    # Overlay anomaly points if any
+    if anomaly_points:
+        short_code = {"chlorophyll": "chl", "dissolved_oxygen": "odo",
+                      "temperature": "temp", "ph": "ph", "turbidity": "turb"}.get(indicator, indicator)
+        filtered = [p for p in anomaly_points if p.get("indicator") == short_code]
+        if filtered:
+            hover_texts = [
+                f"{INDICATOR_SHORT_MAP.get(p.get('indicator',''), p.get('indicator',''))}: {p.get('value','?')}"
+                for p in filtered
+            ]
+            fig.add_trace(go.Scatter3d(
+                x=[p["lon"] for p in filtered],
+                y=[p["lat"] for p in filtered],
+                z=[p["depth"] for p in filtered],
+                mode="markers",
+                marker=dict(color="red", size=5, symbol="x", line=dict(width=1, color="darkred")),
+                text=hover_texts,
+                hovertemplate="<b>⚠ 异常点</b><br>%{text}<br>Lon=%{x:.4f}<br>Lat=%{y:.4f}<br>Depth=%{z}m<extra></extra>",
+                name="异常点",
+            ))
     fig.update_layout(
         title=dict(text=f"{label} 三维散点图"),
         scene=dict(xaxis_title="经度", yaxis_title="纬度", zaxis_title="深度 (m)"),
