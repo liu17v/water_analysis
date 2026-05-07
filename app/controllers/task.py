@@ -234,7 +234,61 @@ async def get_depth_profile(
                           "profile": profile, "depths": sorted(depth_map.keys())})
 
 
-@task_router.get("/api/task/{task_id}/raw_data", summary="获取原始数据预览")
+@task_router.get("/api/task/{task_id}/depth_profile_html", summary="获取深度剖面图HTML")
+async def get_depth_profile_html(
+    task_id: str,
+    indicator: str = Query("chlorophyll"),
+    db: AsyncSession = Depends(get_db),
+):
+    """返回完整独立HTML（Plotly线图），供iframe加载"""
+    from plotly import graph_objects as go
+
+    task = await DataService.get_task(db, task_id)
+    if not task:
+        raise BusinessException(msg="任务不存在", code=404)
+    if indicator not in INDICATOR_LABELS:
+        raise BusinessException(msg=f"不支持的指标: {indicator}", code=400)
+
+    rows = await DataService.get_raw_data(db, task_id)
+    if not rows:
+        raise BusinessException(msg="无数据", code=404)
+
+    # Group by depth
+    depth_map = {}
+    for r in rows:
+        d = r.depth_m
+        val = getattr(r, indicator, None)
+        if d is not None and val is not None:
+            depth_map.setdefault(d, []).append(val)
+
+    depths = sorted(depth_map.keys())
+    means = [sum(depth_map[d]) / len(depth_map[d]) for d in depths]
+    mins = [min(depth_map[d]) for d in depths]
+    maxs = [max(depth_map[d]) for d in depths]
+
+    label, unit = INDICATOR_LABELS.get(indicator, (indicator, ""))
+    title = f"{label} 深度剖面" + (f" ({unit})" if unit else "")
+
+    fig = go.Figure()
+    # Range band
+    fig.add_trace(go.Scatter(
+        x=mins + maxs[::-1], y=depths + depths[::-1],
+        fill="toself", fillcolor="rgba(64,158,255,0.15)", line=dict(width=0),
+        name="范围", showlegend=True,
+    ))
+    # Mean line
+    fig.add_trace(go.Scatter(
+        x=means, y=depths, mode="lines+markers",
+        line=dict(color="#409eff", width=3), marker=dict(size=8, color="#409eff"),
+        name="均值", showlegend=True,
+        hovertemplate=f"{label}=%{{x:.2f}} {unit}<br>深度=%{{y}}m<extra></extra>",
+    ))
+    fig.update_layout(
+        title=title, xaxis_title=f"{label}" + (f" ({unit})" if unit else ""),
+        yaxis_title="深度 (m)", yaxis=dict(autorange="reversed"),
+        height=500, margin=dict(l=60, r=30, t=50, b=50), hovermode="x unified",
+    )
+    return HTMLResponse(content=fig.to_html(full_html=True, include_plotlyjs="cdn"))
 async def get_raw_data_preview(
     task_id: str,
     page: int = Query(1, ge=1),

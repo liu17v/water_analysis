@@ -39,6 +39,7 @@
 
     <template v-if="task?.status === 'success'">
       <el-tabs v-model="activeTab" type="border-card" style="margin-top:16px" @tab-change="onTabChange">
+        <!-- 数据统计 -->
         <el-tab-pane label="数据统计" name="statistics">
           <div v-loading="statsLoading" class="tab-content">
             <el-row :gutter="16">
@@ -69,46 +70,65 @@
           </div>
         </el-tab-pane>
 
+        <!-- 2D 等值线图 -->
         <el-tab-pane label="2D 等值线图" name="2d">
-          <ContourPanel :taskId="task.task_id" :depths="depthList" ref="contourRef" />
-        </el-tab-pane>
-
-        <el-tab-pane label="3D 体渲染" name="3d">
-          <PointCloudFrame :taskId="task.task_id" />
-        </el-tab-pane>
-
-        <el-tab-pane label="深度剖面" name="depth">
-          <div class="tab-content">
-            <div class="controls-row">
-              <el-select v-model="profileIndicator" @change="loadDepthProfile">
-                <el-option label="叶绿素" value="chlorophyll" />
-                <el-option label="溶解氧" value="dissolved_oxygen" />
-                <el-option label="水温" value="temperature" />
-                <el-option label="pH" value="ph" />
-                <el-option label="浊度" value="turbidity" />
+          <div class="viz-tab">
+            <div class="viz-controls">
+              <span class="ctrl-label">指标</span>
+              <el-select v-model="contourIndicator" @change="reloadContour">
+                <el-option v-for="o in indicatorOptions" :key="o.value" :label="o.label" :value="o.value" />
               </el-select>
-              <span class="profile-title">{{ profileLabel }}</span>
+              <span class="ctrl-label">深度</span>
+              <el-select v-model="contourDepth" @change="reloadContour">
+                <el-option v-for="d in depthList" :key="d" :label="d + 'm'" :value="d" />
+              </el-select>
+              <el-tag size="small" effect="plain" style="margin-left:8px">Plotly 等值线</el-tag>
             </div>
-            <div v-if="profileData.length" class="profile-chart">
-              <div class="profile-y"><span v-for="d in profileData" :key="d.depth">{{ d.depth }}m</span></div>
-              <div class="profile-area">
-                <div v-for="(d, i) in profileData" :key="d.depth" class="profile-row" :style="{left: depthPos(i)}">
-                  <div class="profile-boxplot">
-                    <div class="bp-bar" :style="{height: barHeight(d), marginTop: barMarginTop(d)}"></div>
-                    <div class="bp-range" :style="{height: rangeHeight(d), top: rangeTop(d)}"></div>
-                    <div class="bp-mean" :style="{bottom: meanPos(d)}"></div>
-                  </div>
-                  <span class="bp-val">{{ d.mean?.toFixed(2) }}</span>
-                </div>
-                <div class="profile-axis">
-                  <span v-for="tick in yTicks" :key="tick" :style="{bottom: tickPos(tick)+'%'}">{{ tick }}</span>
-                </div>
-              </div>
+            <div class="iframe-wrap">
+              <iframe v-if="contourSrc" :key="contourKey" :src="contourSrc"
+                frameborder="0" sandbox="allow-scripts allow-same-origin" class="viz-iframe" />
+              <el-empty v-else description="加载中等值线图..." :image-size="60" />
             </div>
-            <el-empty v-else description="选择指标查看深度剖面" :image-size="80" />
           </div>
         </el-tab-pane>
 
+        <!-- 3D 体渲染 -->
+        <el-tab-pane label="3D 体渲染" name="3d">
+          <div class="viz-tab">
+            <div class="viz-controls">
+              <span class="ctrl-label">指标</span>
+              <el-select v-model="volumeIndicator" @change="reloadVolume">
+                <el-option v-for="o in indicatorOptions" :key="o.value" :label="o.label" :value="o.value" />
+              </el-select>
+              <el-tag size="small" effect="plain" type="info" style="margin-left:8px">Plotly 3D Volume</el-tag>
+            </div>
+            <div class="iframe-wrap">
+              <iframe v-if="volumeSrc" :key="volumeKey" :src="volumeSrc"
+                frameborder="0" sandbox="allow-scripts allow-same-origin" class="viz-iframe" />
+              <el-empty v-else description="加载中3D渲染..." :image-size="60" />
+            </div>
+          </div>
+        </el-tab-pane>
+
+        <!-- 深度剖面 -->
+        <el-tab-pane label="深度剖面" name="depth">
+          <div class="viz-tab">
+            <div class="viz-controls">
+              <span class="ctrl-label">指标</span>
+              <el-select v-model="profileIndicator" @change="reloadProfile">
+                <el-option v-for="o in indicatorOptions" :key="o.value" :label="o.label" :value="o.value" />
+              </el-select>
+              <el-tag size="small" effect="plain" type="success" style="margin-left:8px">深度剖面分析</el-tag>
+            </div>
+            <div class="iframe-wrap">
+              <iframe v-if="profileSrc" :key="profileKey" :src="profileSrc"
+                frameborder="0" sandbox="allow-scripts allow-same-origin" class="viz-iframe" />
+              <el-empty v-else description="加载中深度剖面..." :image-size="60" />
+            </div>
+          </div>
+        </el-tab-pane>
+
+        <!-- 原始数据 -->
         <el-tab-pane label="原始数据" name="raw">
           <div class="tab-content">
             <el-table :data="rawRows" stripe v-loading="rawLoading" max-height="500" border size="small">
@@ -125,8 +145,7 @@
               v-if="rawTotal > rawPageSize"
               style="margin-top:12px; justify-content:flex-end"
               layout="total, prev, pager, next"
-              :total="rawTotal"
-              :page-size="rawPageSize"
+              :total="rawTotal" :page-size="rawPageSize"
               v-model:current-page="rawPage"
               @current-change="loadRawData"
             />
@@ -141,25 +160,54 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { Loading, WarningFilled, Document, Download } from '@element-plus/icons-vue'
-import ContourPanel from '../components/ContourPanel.vue'
-import PointCloudFrame from '../components/PointCloudFrame.vue'
 import api from '../api'
 
 const route = useRoute()
 const task = ref(null)
 const activeTab = ref('statistics')
 const depthList = ref([])
-const contourRef = ref(null)
 let pollTimer = null
+
+// Indicator options
+const indicatorOptions = [
+  { label: '叶绿素 (Chl)', value: 'chlorophyll' },
+  { label: '溶解氧 (DO)', value: 'dissolved_oxygen' },
+  { label: '水温 (Temp)', value: 'temperature' },
+  { label: 'pH', value: 'ph' },
+  { label: '浊度 (Turb)', value: 'turbidity' },
+]
+
+// 2D Contour
+const contourIndicator = ref('chlorophyll')
+const contourDepth = ref(1)
+const contourKey = ref(0)
+const contourSrc = computed(() => {
+  if (!task.value?.task_id) return ''
+  return `/api/task/${task.value.task_id}/contour_html?indicator=${contourIndicator.value}&depth=${contourDepth.value}`
+})
+function reloadContour() { contourKey.value++ }
+
+// 3D Volume
+const volumeIndicator = ref('chlorophyll')
+const volumeKey = ref(0)
+const volumeSrc = computed(() => {
+  if (!task.value?.task_id) return ''
+  return `/3d/${task.value.task_id}_${volumeIndicator.value}.html`
+})
+function reloadVolume() { volumeKey.value++ }
+
+// Depth Profile
+const profileIndicator = ref('chlorophyll')
+const profileKey = ref(0)
+const profileSrc = computed(() => {
+  if (!task.value?.task_id) return ''
+  return `/api/task/${task.value.task_id}/depth_profile_html?indicator=${profileIndicator.value}`
+})
+function reloadProfile() { profileKey.value++ }
 
 // Statistics
 const statsLoading = ref(false)
 const indicatorStats = ref([])
-
-// Depth profile
-const profileIndicator = ref('chlorophyll')
-const profileData = ref([])
-const profileLabel = ref('')
 
 // Raw data
 const rawRows = ref([])
@@ -197,93 +245,39 @@ async function pollStatus() {
 async function loadDepths() {
   try {
     const res = await api.getVisualization(route.params.id, 'chlorophyll', 1)
-    depthList.value = res.depths || (res.data?.depths || [])
+    depthList.value = res.depths || []
+    if (depthList.value.length) {
+      contourDepth.value = depthList.value[0]
+    }
   } catch {}
 }
 
-// ----- Statistics -----
+// Statistics
 async function loadStatistics() {
   if (indicatorStats.value.length) return
   statsLoading.value = true
   try {
     const res = await api.getStatistics(route.params.id)
-    const indicators = res.indicators || res.data?.indicators || {}
+    const indicators = res.indicators || {}
     indicatorStats.value = Object.values(indicators)
   } finally { statsLoading.value = false }
 }
 
-// ----- Depth profile -----
-async function loadDepthProfile() {
-  try {
-    const res = await api.getDepthProfile(route.params.id, profileIndicator.value)
-    const data = res.data || res
-    profileData.value = data.profile || []
-    profileLabel.value = data.label ? `${data.label}${data.unit ? ' (' + data.unit + ')' : ''}` : ''
-  } catch { profileData.value = [] }
-}
-
-const yTicks = computed(() => {
-  if (!profileData.value.length) return []
-  const allVals = profileData.value.flatMap(d => [d.min, d.max, d.mean])
-  const lo = Math.min(...allVals), hi = Math.max(...allVals)
-  const step = (hi - lo) / 5
-  return Array.from({ length: 6 }, (_, i) => +(lo + step * i).toFixed(2))
-})
-
-function depthPos(i) { return ((i + 0.5) / profileData.value.length * 100) + '%' }
-function tickPos(v) {
-  const allVals = profileData.value.flatMap(d => [d.min, d.max])
-  const lo = Math.min(...allVals), hi = Math.max(...allVals)
-  if (hi === lo) return 0
-  return ((v - lo) / (hi - lo) * 100)
-}
-function barHeight(d) {
-  const allVals = profileData.value.flatMap(d => [d.min, d.max])
-  const lo = Math.min(...allVals), hi = Math.max(...allVals)
-  if (hi === lo) return '20px'
-  return ((d.mean - lo) / (hi - lo) * 100) + '%'
-}
-function barMarginTop(d) {
-  const allVals = profileData.value.flatMap(d => [d.min, d.max])
-  const lo = Math.min(...allVals), hi = Math.max(...allVals)
-  if (hi === lo) return '0'
-  return ((hi - d.mean) / (hi - lo) * 100) + '%'
-}
-function rangeHeight(d) {
-  const allVals = profileData.value.flatMap(d => [d.min, d.max])
-  const lo = Math.min(...allVals), hi = Math.max(...allVals)
-  if (hi === lo) return '20px'
-  return ((d.max - d.min) / (hi - lo) * 100) + '%'
-}
-function rangeTop(d) {
-  const allVals = profileData.value.flatMap(d => [d.min, d.max])
-  const lo = Math.min(...allVals), hi = Math.max(...allVals)
-  if (hi === lo) return '0'
-  return ((hi - d.max) / (hi - lo) * 100) + '%'
-}
-function meanPos(d) {
-  const allVals = profileData.value.flatMap(d => [d.min, d.max])
-  const lo = Math.min(...allVals), hi = Math.max(...allVals)
-  if (hi === lo) return '50%'
-  return ((d.mean - lo) / (hi - lo) * 100) + '%'
-}
-
-// ----- Raw data -----
+// Raw data
 async function loadRawData() {
   rawLoading.value = true
   try {
     const res = await api.getRawData(route.params.id, rawPage.value, rawPageSize.value)
-    rawRows.value = res.items || res.data?.items || []
-    rawFields.value = res.fields || res.data?.fields || []
-    rawFieldLabels.value = res.field_labels || res.data?.field_labels || []
-    rawTotal.value = res.total || res.data?.total || 0
+    rawRows.value = res.items || []
+    rawFields.value = res.fields || []
+    rawFieldLabels.value = res.field_labels || []
+    rawTotal.value = res.total || 0
   } finally { rawLoading.value = false }
 }
 
-// ----- Tab switching -----
+// Tab switching
 function onTabChange(name) {
   if (name === 'statistics') loadStatistics()
-  else if (name === 'depth') loadDepthProfile()
   else if (name === 'raw') loadRawData()
 }
 
@@ -296,6 +290,16 @@ onUnmounted(() => clearTimeout(pollTimer))
 .info-card { margin-bottom: 16px; }
 .tab-content { padding: 8px 0; }
 
+/* Viz tabs - consistent layout */
+.viz-tab { background: #fff; border-radius: 8px; overflow: hidden; }
+.viz-controls {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 16px; background: #fafafa; border-bottom: 1px solid #ebeef5;
+}
+.ctrl-label { font-size: 13px; color: #606266; font-weight: 500; }
+.iframe-wrap { width: 100%; height: 650px; }
+.viz-iframe { width: 100%; height: 100%; border: none; }
+
 /* Indicator cards */
 .indicator-card { margin-bottom: 4px; }
 .indicator-header { display: flex; justify-content: space-between; align-items: center; }
@@ -305,21 +309,6 @@ onUnmounted(() => clearTimeout(pollTimer))
 .stat-num { display: block; font-size: 16px; font-weight: 600; color: #303133; margin-top: 2px; }
 .indicator-footer { margin-top: 10px; font-size: 12px; color: #909399; }
 
-/* Depth profile chart */
-.controls-row { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
-.profile-title { font-size: 14px; color: #606266; font-weight: 600; }
-.profile-chart { display: flex; height: 350px; position: relative; }
-.profile-y { display: flex; flex-direction: column; justify-content: space-around; width: 48px; font-size: 11px; color: #909399; }
-.profile-area { flex: 1; position: relative; border-left: 2px solid #dcdfe6; border-bottom: 2px solid #dcdfe6; margin-left: 8px; margin-bottom: 24px; }
-.profile-row { position: absolute; bottom: 0; width: 40px; text-align: center; transform: translateX(-50%); }
-.profile-boxplot { position: absolute; bottom: 0; width: 100%; height: 100%; }
-.bp-bar { width: 12px; background: #409eff; border-radius: 3px; margin: 0 auto; }
-.bp-range { width: 3px; background: #909399; position: absolute; left: 50%; transform: translateX(-50%); border-radius: 2px; }
-.bp-mean { width: 8px; height: 3px; background: #f56c6c; position: absolute; left: 50%; transform: translateX(-50%); }
-.bp-val { display: block; font-size: 10px; color: #606266; margin-top: 4px; }
-.profile-axis { position: absolute; right: 0; top: 0; bottom: 0; width: 52px; }
-.profile-axis span { position: absolute; right: 0; font-size: 11px; color: #909399; transform: translateY(50%); }
-
 /* Raw data */
-.suspicious-cell { color: #f56c6c; }
+.suspicious-cell { color: #f56c6c; font-weight: 600; }
 </style>
