@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# 环境变量
+.env
+
+# 日志
+app/logs/
+log/
+
+# 运行时数据
+app/data/uploads/*
+app/data/reports/*
+!app/data/uploads/.gitkeep
+!app/data/reports/.gitkeep
+
+# 静态生成
+app/static/3d/*.html
+
+# 前端
+app/frontend/node_modules/
+app/frontend/dist/
+
+# Docker
+docker-compose.override.yml
+
+# OS
+.DS_Store
+Thumbs.db

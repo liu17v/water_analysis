@@ -1,0 +1,9 @@
+.venv
+.idea
+__pycache__
+*.pyc
+app/logs
+app/data
+app/static/3d
+.git
+node_modules
