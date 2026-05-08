@@ -83,6 +83,13 @@
       <!-- 生成区域 -->
       <el-card header="生成分析报告" style="margin-bottom:16px">
         <div style="text-align:center;padding:16px 0">
+          <div style="margin-bottom:16px">
+            <span style="margin-right:12px;font-size:14px;color:#606266">报告模板:</span>
+            <el-radio-group v-model="reportTemplate" :disabled="generating || generated">
+              <el-radio label="standard">标准版 - 完整统计 + 异常分析</el-radio>
+              <el-radio label="brief">简洁版 - 关键指标汇总</el-radio>
+            </el-radio-group>
+          </div>
           <el-button
             type="primary" size="large" @click="generateReport"
             :loading="generating" :disabled="generated"
@@ -107,10 +114,20 @@
         <div v-if="reportUrl" style="margin-top:20px">
           <el-result icon="success" title="报告生成成功" sub-title="报告已保存至本地文件系统">
             <template #extra>
-              <el-button type="primary" @click="openReport">预览报告</el-button>
+              <el-button type="primary" @click="showPreview = !showPreview">
+                {{ showPreview ? '隐藏预览' : '预览报告' }}
+              </el-button>
               <el-button @click="downloadReport">下载报告</el-button>
             </template>
           </el-result>
+          <div v-if="showPreview" style="margin-top:16px">
+            <iframe v-if="reportUrl.endsWith('.pdf')" :src="reportUrl" style="width:100%;height:600px;border:1px solid #ebeef5;border-radius:4px" />
+            <div v-else style="text-align:center;padding:20px">
+              <el-button type="primary" @click="openReport">
+                <el-icon><Download /></el-icon> 下载并打开报告文件
+              </el-button>
+            </div>
+          </div>
         </div>
 
         <div v-if="error" style="margin-top:16px">
@@ -189,6 +206,8 @@ const error = ref('')
 const similarTasks = ref([])
 const similarLoading = ref(false)
 const taskInfo = reactive({})
+const reportTemplate = ref('standard')
+const showPreview = ref(false)
 let progressTimer = null
 
 function simType(v) {

@@ -1,5 +1,5 @@
 import os
-from fastapi import Request, Response
+from fastapi import Request, Response, Depends
 from starlette.middleware.base import BaseHTTPMiddleware
 from dotenv import load_dotenv
 from .jwt_util import verify_token
@@ -12,10 +12,11 @@ logger = get_logger("system")
 WHITE_LIST = [
     "/",
     "/api/health",
+    "/api/auth/login",
+    "/api/auth/register",
     "/docs",
     "/redoc",
     "/openapi.json",
-    "/api/upload",
 ]
 
 
@@ -50,3 +51,31 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
         request.state.user = user_info
         return await call_next(request)
+
+
+def get_current_user(request: Request) -> dict:
+    """FastAPI dependency: get current user info from request state."""
+    user = getattr(request.state, "user", None)
+    if not user:
+        token = request.cookies.get("token")
+        if not token:
+            auth_header = request.headers.get("authorization", "")
+            if auth_header.lower().startswith("bearer "):
+                token = auth_header[7:]
+        if token:
+            user = verify_token(token)
+            if user:
+                request.state.user = user
+    return user
+
+
+def require_admin(request: Request):
+    """FastAPI dependency: require admin role."""
+    user = get_current_user(request)
+    if not user:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=401, detail="请先登录")
+    if user.get("role") != "admin":
+        from fastapi import HTTPException
+        raise HTTPException(status_code=403, detail="需要管理员权限")
+    return user

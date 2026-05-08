@@ -106,6 +106,5 @@ def process_csv(self, task_id: str):
 
 
 async def run_task_local(task_id: str):
-    """Redis 不可用时，在线程池中同步执行流水线"""
-    loop = asyncio.get_running_loop()
-    await loop.run_in_executor(None, _run_pipeline, task_id)
+    """本地异步处理流水线（直接在当前 event loop 中运行）"""
+    await _run_pipeline_async(task_id)

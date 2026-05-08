@@ -15,7 +15,7 @@ from app.utils.log_config import get_logger
 
 logger = get_logger("controllers.upload")
 settings = get_settings()
-upload_router = APIRouter()
+upload_router = APIRouter(tags=["数据上传"])
 
 
 @upload_router.post("/api/upload", summary="上传CSV数据")
@@ -47,12 +47,8 @@ async def upload_csv(
     )
     await DataService.save_raw_data(db, task_id, rows)
 
-    # 尝试投递 Celery，Redis 不可用时降级为本地异步处理
-    try:
-        process_csv.delay(task_id)
-        logger.info(f"CSV上传完成 (Celery) | task_id={task_id} | rows={len(rows)}")
-    except Exception as e:
-        logger.warning(f"Redis 不可用，降级为本地处理 | {e}")
-        asyncio.create_task(run_task_local(task_id))
+    # 本地异步处理（开发/单机环境无需 Celery worker）
+    asyncio.create_task(run_task_local(task_id))
+    logger.info(f"CSV上传完成 | task_id={task_id} | rows={len(rows)}")
 
     return success(datas=UploadOut(task_id=task_id).model_dump())

@@ -59,9 +59,9 @@
 
 | 角色 | 权限 |
 |------|------|
-| 系统管理员 | 用户管理、系统配置、日志审计 |
-| 数据分析师 | 数据上传、查看分析、导出报告 |
-| 普通访客 | 浏览样例数据，体验功能 |
+| 管理员 (admin) | 所有功能：数据上传、任务管理、异常查看、报告生成与删除 |
+| 普通用户 (user) | 同管理员权限（当前版本未做角色细分） |
+| 未登录 | 仅可访问登录/注册页（认证关闭时可直接使用全部功能） |
 
 ---
 
@@ -70,8 +70,9 @@
 ```
 ┌──────────────────────────────────────────────────────────┐
 │                      前端 (Vue3 + Element Plus)            │
-│         UploadView  │  TaskDetailView  │  ReportView       │
-│              FileDrop  │  ContourPanel  │  PointCloudFrame │
+│    DashboardView │ UploadView │ TaskListView │ AnomalyManageView │
+│    TaskDetailView │ AnomalyView │ ReportView │ ReportManageView │
+│    FileDrop  │  ContourPanel  │  PointCloudFrame            │
 └──────────────┬───────────────────────────────────────────┘
                │ HTTP / WebSocket
 ┌──────────────▼───────────────────────────────────────────┐
@@ -153,6 +154,7 @@ CSV上传 → 编码检测 → 字段映射 → MySQL入库
 water_analysis/
 ├── main.py                     # FastAPI 应用入口 (lifespan, 路由, 中间件)
 ├── init_db.py                  # 数据库初始化脚本 (建表 + Milvus 集合)
+├── seed_admin.py               # 创建默认管理员账号
 ├── requirements.txt            # Python 依赖
 ├── pyproject.toml              # 项目元数据 + Pytest/Ruff 配置
 ├── Dockerfile                  # Docker 镜像构建
@@ -192,9 +194,11 @@ water_analysis/
     │
     ├── controllers/            # 路由控制层
     │   ├── upload.py           #   POST /api/upload
-    │   ├── task.py             #   GET /api/task/{id}/status|visualization + DELETE
-    │   ├── anomaly.py          #   GET /api/task/{id}/anomalies
-    │   └── report.py           #   POST /api/task/{id}/similar|generate_report
+    │   ├── task.py             #   GET /api/task/{id}/* (9 endpoints: status, visualization, contour_html,
+    │   │                       #     statistics, depth_profile, depth_profile_html, raw_data, tasks, delete)
+    │   ├── anomaly.py          #   GET /api/anomalies, GET/POST /api/task/{id}/anomalies*
+    │   └── report.py           #   GET /api/reports, GET /api/task/{id}/report_status,
+    │                           #     POST /api/task/{id}/similar|generate_report, DELETE /api/report/{id}
     │
     ├── services/               # 业务逻辑层
     │   ├── data_service.py     #   CSV 解析、编码检测、字段映射、数据入库
@@ -214,21 +218,24 @@ water_analysis/
     │
     ├── frontend/               # Vue3 前端源码
     │   ├── src/
-    │   │   ├── views/          #   UploadView, TaskDetailView, AnomalyView, ReportView
+    │   │   ├── views/          #   页面视图 (7 个)
+    │   │   │                   #   DashboardView, UploadView, TaskListView,
+    │   │   │                   #   TaskDetailView, AnomalyView, AnomalyManageView,
+    │   │   │                   #   ReportView, ReportManageView
     │   │   ├── components/     #   FileDrop, ContourPanel, PointCloudFrame
-    │   │   ├── router/         #   Vue Router 配置
-    │   │   ├── api/            #   Axios API 封装
+    │   │   ├── router/         #   Vue Router 配置 (8 routes)
+    │   │   ├── api/            #   Axios API 封装 (15 methods)
     │   │   ├── stores/         #   Pinia 状态管理
-    │   │   └── App.vue         #   根组件
+    │   │   └── App.vue         #   根组件 (侧边栏 + 面包屑)
     │   ├── vite.config.js      #   代理配置 (/api → :8000)
     │   └── package.json        #   NPM 依赖
     │
-    ├── static/                 # 静态资源
-    │   └── 3d/                 #   生成的 3D 体渲染 HTML
+    ├── static/                 # 前端构建产物 (Vite 输出)
     │
     ├── data/                   # 运行时数据
     │   ├── uploads/            #   上传的 CSV 文件
     │   ├── reports/            #   生成的 DOCX/PDF 报告
+    │   ├── 3d/                 #   生成的 3D 体渲染 HTML
     │   └── samples/            #   样例数据集
     │
     └── logs/                   # 日志文件
@@ -268,6 +275,9 @@ pip install -r requirements.txt
 # 4. 初始化数据库 (需先启动 MySQL 和 Milvus)
 python init_db.py
 
+# 4.5 创建默认管理员（可选，启用认证时需要）
+python seed_admin.py
+
 # 5. 启动 Celery Worker (新终端)
 celery -A app.services.celery_tasks worker --loglevel=info --concurrency=4
 
@@ -295,10 +305,11 @@ docker-compose logs -f fastapi
 docker-compose down
 ```
 
-首次启动后需初始化数据库表结构：
+首次启动后需初始化数据库表结构并创建管理员：
 
 ```bash
 docker-compose exec fastapi python init_db.py
+docker-compose exec fastapi python seed_admin.py
 ```
 
 ---
@@ -327,7 +338,10 @@ docker-compose exec fastapi python init_db.py
 | `REDIS_URL` | Redis 连接 | `redis://localhost:6379/0` |
 | `MILVUS_HOST` | Milvus 地址 | `localhost` |
 | `MILVUS_PORT` | Milvus 端口 | `19530` |
-| `USER_AUTHORIZATION` | 是否开启用户认证 | `False` |
+| `USER_AUTHORIZATION` | 是否开启登录验证 | `False` |
+| `JWT_SECRET` | JWT 签名密钥 | `change-me-in-production` |
+| `JWT_ALGORITHM` | JWT 算法 | `HS256` |
+| `JWT_EXPIRE_HOURS` | Token 过期时间(小时) | `2` |
 | `LOG_LEVEL` | 日志级别 | `INFO` |
 | `GRID_RESOLUTION` | 插值网格分辨率 | `50` |
 | `INTERPOLATION_METHOD` | 插值方法 | `idw` |
@@ -353,6 +367,84 @@ docker-compose exec fastapi python init_db.py
 
 ---
 
+## 用户认证
+
+系统支持基于 **JWT** 的登录验证，通过 `.env` 中的 `USER_AUTHORIZATION` 开关控制。
+
+### 启用认证
+
+在 `.env` 中设置：
+
+```env
+USER_AUTHORIZATION=True
+```
+
+重启服务后生效。关闭认证只需设为 `False` 或不设置此项。
+
+### 默认账号
+
+| 项目 | 值 |
+|------|-----|
+| 登录地址 | `http://localhost:8000/static/index.html#/login` |
+| 用户名 | `admin` |
+| 密码 | `admin123` |
+| 角色 | 管理员 |
+
+首次使用前运行种子脚本创建管理员：
+
+```bash
+python seed_admin.py
+```
+
+### 认证流程
+
+```
+访问受保护页面 → 前端导航守卫检查 localStorage token
+  ├─ 无 token → 跳转 /login 页面
+  └─ 有 token → axios 自动携带 Authorization: Bearer <token>
+       ├─ 后端 AuthMiddleware 验证 cookie / header token
+       ├─ 通过 → request.state.user 注入用户信息
+       └─ 401 → 前端清除 token → 跳转 /login
+```
+
+### 注册新用户
+
+1. 访问登录页 `http://localhost:8000/static/index.html#/login`
+2. 点击「去注册」切换为注册模式
+3. 填写用户名（2-32位）和密码（6-64位）
+4. 注册成功后自动切换回登录页
+
+### 认证 API
+
+| 方法 | 路径 | 说明 | 需认证 |
+|------|------|------|--------|
+| `POST` | `/api/auth/register` | 用户注册 | 否 |
+| `POST` | `/api/auth/login` | 登录，返回 JWT + httpOnly cookie | 否 |
+| `GET` | `/api/auth/me` | 获取当前用户信息 | 是 |
+| `POST` | `/api/auth/logout` | 退出登录，清除 cookie | 否 |
+
+### 白名单路由（无需登录）
+
+以下路径不经过认证中间件，始终可访问：
+
+- `/` — 根重定向
+- `/api/health` — 健康检查
+- `/api/auth/login` — 登录
+- `/api/auth/register` — 注册
+- `/docs`、`/redoc`、`/openapi.json` — API 文档
+- `/static/*` — 前端静态资源
+- `/reports/*` — 报告文件下载
+
+### 角色权限
+
+| 角色 | 权限范围 |
+|------|---------|
+| 管理员 (admin) | 所有功能：数据上传、任务管理、异常查看、报告生成与删除 |
+| 普通用户 (user) | 同管理员（当前版本未做角色细分） |
+| 未登录 | 仅可访问登录/注册页 |
+
+---
+
 ## API 文档
 
 服务启动后访问 `http://localhost:8000/docs` 查看交互式 Swagger 文档。
@@ -363,14 +455,23 @@ docker-compose exec fastapi python init_db.py
 |------|------|-------------|------|
 | `GET` | `/api/health` | — | 健康检查 |
 | `POST` | `/api/upload` | multipart/form-data | 上传 CSV，返回 task_id |
-| `GET` | `/api/task/{id}/status` | — | 查询任务状态与进度 |
 | `GET` | `/api/tasks?page=1&page_size=20` | — | 分页任务列表 |
+| `GET` | `/api/task/{id}/status` | — | 查询任务状态与进度 |
 | `GET` | `/api/task/{id}/visualization?indicator=chlorophyll&depth=1` | — | 获取等值线 HTML + 体渲染 URL |
-| `GET` | `/api/task/{id}/anomalies?page=1&page_size=50` | — | 分页异常点列表 |
+| `GET` | `/api/task/{id}/contour_html?indicator=chlorophyll&depth=1` | text/html | 等值线图独立 HTML（iframe 加载） |
+| `GET` | `/api/task/{id}/statistics` | — | 各指标统计（均值/标准差/异常率） |
+| `GET` | `/api/task/{id}/depth_profile?indicator=chlorophyll` | — | 深度剖面数据 |
+| `GET` | `/api/task/{id}/depth_profile_html?indicator=chlorophyll` | text/html | 深度剖面图独立 HTML（iframe 加载） |
+| `GET` | `/api/task/{id}/raw_data?page=1&page_size=50` | — | 分页原始数据预览 |
+| `GET` | `/api/anomalies?page=1&indicator=chl&task_id=x` | — | 跨任务异常点列表 |
+| `GET` | `/api/task/{id}/anomalies?page=1&page_size=50` | — | 单任务异常点列表 |
 | `GET` | `/api/task/{id}/anomalies/export` | text/csv | 导出异常点 CSV |
+| `GET` | `/api/reports?page=1&page_size=20` | — | 跨任务报告列表 |
+| `GET` | `/api/task/{id}/report_status` | — | 查询报告生成状态 |
 | `POST` | `/api/task/{id}/similar` | — | Milvus 检索 Top-5 相似案例 |
 | `POST` | `/api/task/{id}/generate_report` | — | 生成 LLM 分析报告 (DOCX/PDF) |
 | `DELETE` | `/api/task/{id}` | — | 删除任务及关联数据 |
+| `DELETE` | `/api/report/{id}` | — | 删除报告（文件 + 记录） |
 
 ### 统一响应格式
 
@@ -534,25 +635,40 @@ cd app/frontend
 npm run dev          # http://localhost:3000, 自动代理 /api → :8000
 
 # 构建
-npm run build        # 输出到 dist/ (可配置 StaticFiles 直接服务)
+npm run build        # 输出到 ../static/ (FastAPI StaticFiles 直接服务)
 ```
 
 ### 页面路由
 
-| 路由 | 组件 | 说明 |
-|------|------|------|
-| `/` | UploadView | 文件拖拽上传 + 任务创建 |
-| `/task/:id` | TaskDetailView | 任务状态 + 2D/3D 可视化 |
-| `/task/:id/anomalies` | AnomalyView | 异常点列表 + CSV 导出 |
-| `/task/:id/report` | ReportView | 相似案例 + 报告生成 |
+| 路由 | 组件 | 侧边栏 | 说明 |
+|------|------|--------|------|
+| `/` | DashboardView | 仪表盘 | 统计概览：任务分布图、异常指标柱状图、成功率仪表盘、最近任务 |
+| `/upload` | UploadView | 数据上传 | CSV 文件拖拽上传，自动创建分析任务 |
+| `/tasks` | TaskListView | 任务列表 | 分页任务列表，支持删除操作，查看/导出/报告快捷按钮 |
+| `/anomalies` | AnomalyManageView | 异常管理 | 跨任务异常点检索，按指标/任务筛选，分页浏览 |
+| `/reports` | ReportManageView | 报告管理 | 跨任务报告管理，下载/删除报告，跳转任务详情 |
+| `/task/:id` | TaskDetailView | (子页面) | 任务详情：数据统计、2D等值线、3D体渲染、深度剖面、原始数据 |
+| `/task/:id/anomalies` | AnomalyView | (子页面) | 单任务异常点列表 + CSV 导出 |
+| `/task/:id/report` | ReportView | (子页面) | LLM 智能报告生成 + Milvus 相似案例检索 |
 
 ### 核心组件
 
 | 组件 | 说明 |
 |------|------|
 | `FileDrop` | 拖拽/点击上传，进度反馈 |
-| `ContourPanel` | 指标/深度选择 + Plotly 等值线 |
-| `PointCloudFrame` | 指标选择 + Plotly 3D 体渲染 iframe |
+| `ContourPanel` | 指标/深度选择 + Plotly 等值线（iframe 加载） |
+| `PointCloudFrame` | 指标选择 + Plotly 3D 体渲染（iframe 加载） |
+
+### 功能特性
+
+- **仪表盘**：CSS 环形图 + 柱状图 + 仪表盘（无额外依赖），可点击卡片筛选任务
+- **2D 等值线图**：Plotly Contour，11 段色阶，异常点红色 X 标注 + 悬停显示指标/数值
+- **3D 体渲染**：Plotly Volume 半透明渲染，12 层等值面，异常点 3D 叠加
+- **深度剖面图**：Plotly 折线图（均值线 + 范围带），Y 轴深度倒序
+- **原始数据预览**：分页表格，异常行红色高亮
+- **异常检测结果**：按指标筛选，标注检测方法（阈值/孤立森林），CSV 导出
+- **智能报告**：四步流程（统计→检测→LLM→存储），侧边栏显示存储位置说明
+- **相似案例**：Milvus 13 维向量检索，相似度百分比 + 颜色条
 
 ---
 

@@ -49,6 +49,15 @@ app = FastAPI(
     title=settings.APP_NAME,
     version="1.0.0",
     lifespan=lifespan,
+    openapi_tags=[
+        {"name": "系统", "description": "健康检查等系统级接口。"},
+        {"name": "认证与用户管理", "description": "用户注册、登录、登出，以及管理员对用户的增删改查操作。"},
+        {"name": "仪表盘", "description": "系统全局统计概览：任务总量、异常分布、成功率、近期趋势。"},
+        {"name": "数据上传", "description": "CSV 文件上传，字段自动解析，触发后台分析流水线。"},
+        {"name": "任务管理", "description": "分析任务全生命周期管理：状态查询、统计、可视化、原始数据浏览、删除与重处理。"},
+        {"name": "异常管理", "description": "异常点查询与筛选（按指标/方法/深度/数值），支持 CSV 导出。"},
+        {"name": "智能报告", "description": "报告生成、相似案例检索、报告状态查询与删除。"},
+    ],
 )
 
 # 异常处理
@@ -61,8 +70,12 @@ from app.controllers.upload import upload_router
 from app.controllers.task import task_router
 from app.controllers.anomaly import anomaly_router
 from app.controllers.report import report_router
+from app.controllers.auth import auth_router
+from app.controllers.dashboard import dashboard_router
 
 api_router = APIRouter()
+api_router.include_router(auth_router)
+api_router.include_router(dashboard_router)
 api_router.include_router(upload_router)
 api_router.include_router(task_router)
 api_router.include_router(anomaly_router)
@@ -91,7 +104,7 @@ app.add_middleware(
 app.add_middleware(AuthMiddleware)
 
 
-@app.get("/api/health", summary="健康检查")
+@app.get("/api/health", summary="健康检查", tags=["系统"])
 def health():
     return {"status": "ok", "app": settings.APP_NAME}
 

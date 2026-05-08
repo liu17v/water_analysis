@@ -7,7 +7,7 @@ from sqlalchemy import select, func, text
 
 from app.config.database import get_db
 from app.config.response import success, BusinessException
-from app.schemas.task import TaskStatusOut, TaskListItem, VisualizationOut
+from app.schemas.task import TaskStatusOut, TaskListItem, TaskUpdateRequest, VisualizationOut
 from app.models.task import Task, TaskStatus as TS
 from app.models.raw_data import RawData
 from app.models.anomaly import AnomalyRecord
@@ -18,7 +18,7 @@ from app.services.milvus_service import delete as milvus_delete
 from app.utils.log_config import get_logger
 
 logger = get_logger("controllers.task")
-task_router = APIRouter()
+task_router = APIRouter(tags=["任务管理"])
 
 
 @task_router.get("/api/task/{task_id}/status", summary="获取任务状态")
@@ -199,6 +199,43 @@ async def get_statistics(task_id: str, db: AsyncSession = Depends(get_db)):
                           "total_anomalies": total_anomalies})
 
 
+@task_router.get("/api/task/{task_id}/distribution", summary="获取指标分布直方图数据")
+async def get_distribution(
+    task_id: str,
+    indicator: str = Query("chlorophyll"),
+    bins: int = Query(20, ge=5, le=100),
+    db: AsyncSession = Depends(get_db),
+):
+    task = await DataService.get_task(db, task_id)
+    if not task:
+        raise BusinessException(msg="任务不存在", code=404)
+    if indicator not in INDICATOR_LABELS:
+        raise BusinessException(msg=f"不支持的指标: {indicator}", code=400)
+
+    rows = await DataService.get_raw_data(db, task_id)
+    vals = [getattr(r, indicator) for r in rows if getattr(r, indicator) is not None]
+    if not vals:
+        raise BusinessException(msg="无数据", code=404)
+
+    vmin, vmax = min(vals), max(vals)
+    if vmin == vmax:
+        vmax = vmin + 1e-6
+    bin_edges = [vmin + (vmax - vmin) * i / bins for i in range(bins + 1)]
+    counts = [0] * bins
+    for v in vals:
+        idx = min(int((v - vmin) / (vmax - vmin) * bins), bins - 1)
+        counts[idx] += 1
+    bin_centers = [round((bin_edges[i] + bin_edges[i + 1]) / 2, 4) for i in range(bins)]
+
+    label, unit = INDICATOR_LABELS.get(indicator, (indicator, ""))
+    return success(datas={
+        "indicator": indicator, "label": label, "unit": unit,
+        "bins": bin_centers, "counts": counts,
+        "min": round(vmin, 4), "max": round(vmax, 4),
+        "total": len(vals),
+    })
+
+
 @task_router.get("/api/task/{task_id}/depth_profile", summary="获取深度剖面数据")
 async def get_depth_profile(
     task_id: str,
@@ -301,7 +338,7 @@ async def get_depth_profile_html(
 async def get_raw_data_preview(
     task_id: str,
     page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=200),
+    page_size: int = Query(50, ge=1, le=20000),
     db: AsyncSession = Depends(get_db),
 ):
     task = await DataService.get_task(db, task_id)
@@ -335,6 +372,39 @@ async def get_raw_data_preview(
 
     return success(datas={"total": total, "fields": fields, "field_labels": field_labels,
                           "items": data, "page": page, "page_size": page_size})
+
+
+@task_router.put("/api/task/{task_id}", summary="更新任务信息")
+async def update_task(
+    task_id: str,
+    req: TaskUpdateRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    task = await DataService.get_task(db, task_id)
+    if not task:
+        raise BusinessException(msg="任务不存在", code=404)
+    if req.reservoir_name is not None:
+        task.reservoir_name = req.reservoir_name
+    if req.original_filename is not None:
+        task.original_filename = req.original_filename
+    await db.commit()
+    logger.info(f"任务信息已更新 | task_id={task_id}")
+    return success(messages="更新成功")
+
+
+@task_router.post("/api/task/{task_id}/process", summary="手动触发任务处理")
+async def process_task(task_id: str, db: AsyncSession = Depends(get_db)):
+    task = await DataService.get_task(db, task_id)
+    if not task:
+        raise BusinessException(msg="任务不存在", code=404)
+    if task.status == TS.processing:
+        raise BusinessException(msg="任务正在处理中", code=400)
+
+    from app.services.celery_tasks import run_task_local
+    import asyncio
+    asyncio.create_task(run_task_local(task_id))
+    logger.info(f"手动触发任务处理 | task_id={task_id}")
+    return success(messages="处理任务已启动")
 
 
 @task_router.delete("/api/task/{task_id}", summary="删除任务")

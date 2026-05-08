@@ -49,7 +49,7 @@
         <el-table-column prop="total_points" label="采样点" width="90" />
         <el-table-column prop="anomaly_count" label="异常点" width="90" />
         <el-table-column prop="created_at" label="创建时间" width="170" />
-        <el-table-column label="操作" width="260" fixed="right">
+        <el-table-column label="操作" width="360" fixed="right">
           <template #default="{ row }">
             <template v-if="row.status === 'success'">
               <el-button type="primary" size="small" link @click="$router.push(`/task/${row.task_id}`)">详情</el-button>
@@ -57,6 +57,10 @@
               <el-button type="info" size="small" link @click="$router.push(`/task/${row.task_id}/report`)">报告</el-button>
             </template>
             <el-button v-else-if="row.status === 'processing'" type="warning" size="small" link @click="$router.push(`/task/${row.task_id}`)">进度</el-button>
+            <el-button v-else-if="row.status === 'pending'" type="success" size="small" link @click="onProcess(row.task_id)">处理</el-button>
+            <el-popconfirm title="确认删除?" @confirm="onDelete(row.task_id)">
+              <template #reference><el-button size="small" link type="danger">删除</el-button></template>
+            </el-popconfirm>
           </template>
         </el-table-column>
       </el-table>
@@ -68,14 +72,12 @@
 import { ref, onMounted } from 'vue'
 import FileDrop from '../components/FileDrop.vue'
 import api from '../api'
+import { useTask } from '../composables/useTask'
+
+const { statusLabel } = useTask()
 
 const tasks = ref([])
 const tableLoading = ref(false)
-
-function statusLabel(s) {
-  const map = { pending: '待处理', processing: '处理中', success: '已完成', failed: '失败' }
-  return map[s] || s
-}
 
 async function refreshTasks() {
   tableLoading.value = true
@@ -85,6 +87,28 @@ async function refreshTasks() {
   } finally {
     tableLoading.value = false
   }
+}
+
+async function onDelete(taskId) {
+  try { await api.deleteTask(taskId); refreshTasks() } catch {}
+}
+
+async function onProcess(taskId) {
+  try {
+    await api.processTask(taskId)
+    ElMessage.success('任务处理已启动')
+    // poll until status changes
+    const poll = setInterval(async () => {
+      try {
+        const res = await api.getTaskStatus(taskId)
+        if (res.status === 'success' || res.status === 'failed') {
+          clearInterval(poll)
+          refreshTasks()
+        }
+      } catch {}
+    }, 2000)
+    setTimeout(() => clearInterval(poll), 120000)
+  } catch {}
 }
 
 function onFileUploaded() { refreshTasks() }

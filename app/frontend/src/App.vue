@@ -1,5 +1,9 @@
 <template>
-  <el-container class="app-container">
+  <!-- Login page: no layout chrome -->
+  <router-view v-if="isLoginPage" />
+
+  <!-- Normal layout -->
+  <el-container v-else class="app-container">
     <!-- 侧边栏 -->
     <el-aside :width="isCollapse ? '64px' : '220px'" class="app-aside">
       <div class="logo" @click="$router.push('/')">
@@ -15,6 +19,10 @@
         text-color="#bfcbd9"
         active-text-color="#409eff"
       >
+        <el-menu-item index="/map">
+          <el-icon><MapLocation /></el-icon>
+          <span>空间地图</span>
+        </el-menu-item>
         <el-menu-item index="/">
           <el-icon><DataBoard /></el-icon>
           <span>仪表盘</span>
@@ -26,6 +34,22 @@
         <el-menu-item index="/tasks">
           <el-icon><List /></el-icon>
           <span>任务列表</span>
+        </el-menu-item>
+        <el-menu-item index="/compare">
+          <el-icon><Sort /></el-icon>
+          <span>数据对比</span>
+        </el-menu-item>
+        <el-menu-item index="/anomalies">
+          <el-icon><WarningFilled /></el-icon>
+          <span>异常管理</span>
+        </el-menu-item>
+        <el-menu-item index="/reports">
+          <el-icon><Document /></el-icon>
+          <span>报告管理</span>
+        </el-menu-item>
+        <el-menu-item v-if="authStore.role === 'admin'" index="/users">
+          <el-icon><UserFilled /></el-icon>
+          <span>用户管理</span>
         </el-menu-item>
       </el-menu>
       <div class="collapse-btn" @click="isCollapse = !isCollapse">
@@ -44,44 +68,62 @@
           </el-breadcrumb>
         </div>
         <div class="header-right">
+          <el-tag type="success" size="small" effect="dark">系统运行中</el-tag>
           <span class="header-user">
             <el-icon><UserFilled /></el-icon>
-            <span style="margin-left:4px">管理员</span>
+            <span style="margin:0 4px">{{ authStore.username || '管理员' }}</span>
+            <span v-if="authStore.role" class="role-tag">{{ authStore.role === 'admin' ? '管理员' : '用户' }}</span>
           </span>
-          <el-tag type="success" size="small" effect="dark">系统运行中</el-tag>
+          <el-button text type="danger" size="small" @click="handleLogout">
+            <el-icon><SwitchButton /></el-icon> 退出
+          </el-button>
         </div>
       </el-header>
       <el-main class="app-main">
-        <router-view />
+        <router-view v-slot="{ Component }">
+          <transition name="fade" mode="out-in">
+            <component :is="Component" />
+          </transition>
+        </router-view>
       </el-main>
     </el-container>
   </el-container>
 </template>
 
 <script setup>
-import { computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import {
-  Odometer, DataBoard, Upload, List, DArrowRight, DArrowLeft, UserFilled,
+  Odometer, DataBoard, Upload, List, Sort, MapLocation, DArrowRight, DArrowLeft,
+  UserFilled, WarningFilled, Document, SwitchButton,
 } from '@element-plus/icons-vue'
+import { useAuthStore } from './stores/auth'
 
 const route = useRoute()
+const router = useRouter()
+const authStore = useAuthStore()
+const isCollapse = ref(false)
+
+const isLoginPage = computed(() => route.path === '/login')
 
 const activeMenu = computed(() => {
   const path = route.path
-  if (path === '/' || path === '/upload' || path === '/tasks') return path
-  if (path.startsWith('/task/') && path.endsWith('/anomalies')) return ''
-  if (path.startsWith('/task/') && path.endsWith('/report')) return ''
+  if (path === '/' || path === '/map' || path === '/upload' || path === '/tasks' || path === '/compare'
+      || path === '/anomalies' || path === '/reports' || path === '/users') return path
   if (path.startsWith('/task/')) return ''
-  // Default: highlight tasks for unknown sub-paths
   return '/' + path.split('/')[1]
 })
 
 const breadcrumb1 = computed(() => {
   const path = route.path
   if (path === '/') return null
+  if (path === '/map') return { label: '空间地图', to: '/map' }
   if (path === '/upload') return { label: '数据上传', to: '/upload' }
   if (path === '/tasks') return { label: '任务列表', to: '/tasks' }
+  if (path === '/compare') return { label: '数据对比', to: '/compare' }
+  if (path === '/anomalies') return { label: '异常管理', to: '/anomalies' }
+  if (path === '/reports') return { label: '报告管理', to: '/reports' }
+  if (path === '/users') return { label: '用户管理', to: '/users' }
   if (path.match(/^\/task\/[^/]+/)) return { label: '任务详情', to: null }
   return null
 })
@@ -92,6 +134,11 @@ const breadcrumb2 = computed(() => {
   if (path.match(/\/report$/)) return '报告生成'
   return null
 })
+
+async function handleLogout() {
+  authStore.logout()
+  router.push('/login')
+}
 </script>
 
 <style>
@@ -137,5 +184,9 @@ body { font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif; background: #f
 }
 .header-right { display: flex; align-items: center; gap: 12px; }
 .header-user { display: flex; align-items: center; font-size: 13px; color: #606266; }
+.role-tag { font-size: 11px; color: #909399; }
 .app-main { padding: 20px; min-height: calc(100vh - 56px); }
+
+.fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
 </style>

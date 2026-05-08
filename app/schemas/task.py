@@ -1,3 +1,4 @@
+from typing import Optional
 from pydantic import BaseModel, Field
 
 
@@ -17,6 +18,11 @@ class TaskListItem(BaseModel):
     total_points: int
     anomaly_count: int
     created_at: str
+
+
+class TaskUpdateRequest(BaseModel):
+    reservoir_name: Optional[str] = Field(None, max_length=128)
+    original_filename: Optional[str] = Field(None, max_length=256)
 
 
 class VisualizationOut(BaseModel):

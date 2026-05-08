@@ -1,7 +1,8 @@
 """智能报告控制器"""
-from fastapi import APIRouter, Depends
+import os
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 
 from app.config.database import get_db
 from app.config.response import success, BusinessException
@@ -15,7 +16,54 @@ from app.services.report_generator import generate
 from app.utils.log_config import get_logger
 
 logger = get_logger("controllers.report")
-report_router = APIRouter()
+report_router = APIRouter(tags=["智能报告"])
+
+
+@report_router.get("/api/reports", summary="报告列表（跨任务）")
+async def list_reports(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(func.count()).select_from(Task).where(Task.report_path.isnot(None))
+    )
+    total = result.scalar()
+
+    result = await db.execute(
+        select(Task).where(Task.report_path.isnot(None))
+        .order_by(Task.created_at.desc()).offset((page - 1) * page_size).limit(page_size)
+    )
+    items = [
+        {"task_id": t.id, "reservoir_name": t.reservoir_name or "",
+         "report_path": t.report_path or "", "total_points": t.total_points,
+         "anomaly_count": t.anomaly_count, "created_at": str(t.created_at or "")}
+        for t in result.scalars().all()
+    ]
+    return success(datas={"total": total, "items": items})
+
+
+@report_router.delete("/api/report/{task_id}", summary="删除报告")
+async def delete_report(task_id: str, db: AsyncSession = Depends(get_db)):
+    task = await DataService.get_task(db, task_id)
+    if not task:
+        raise BusinessException(msg="任务不存在", code=404)
+    import os
+    if task.report_path and os.path.exists(task.report_path):
+        os.remove(task.report_path)
+    task.report_path = None
+    await db.commit()
+    logger.info(f"报告已删除 | task_id={task_id}")
+    return success(messages="报告已删除")
+
+
+@report_router.get("/api/task/{task_id}/report_status", summary="获取报告状态")
+async def report_status(task_id: str, db: AsyncSession = Depends(get_db)):
+    task = await DataService.get_task(db, task_id)
+    if not task:
+        raise BusinessException(msg="任务不存在", code=404)
+    has_report = bool(task.report_path)
+    return success(datas={"has_report": has_report, "report_path": task.report_path or ""})
 
 
 @report_router.post("/api/task/{task_id}/similar", summary="检索相似案例")
@@ -92,8 +140,10 @@ async def generate_report(task_id: str, db: AsyncSession = Depends(get_db)):
 
     path = generate(task_info, rows, anomalies, similar)
 
-    if path and path.endswith(".pdf"):
+    if path:
         task.report_path = path
         await db.commit()
+        ext = os.path.splitext(path)[1]
+        return success(datas=ReportOut(report_url=f"/reports/{task_id}{ext}").model_dump())
 
-    return success(datas=ReportOut(report_url=f"/reports/{task_id}.pdf" if path else "").model_dump())
+    return success(datas=ReportOut(report_url="").model_dump())
