@@ -2,7 +2,28 @@
   <div class="upload-view">
     <el-row :gutter="24">
       <el-col :span="16">
-        <FileDrop @uploaded="onFileUploaded" />
+        <div class="upload-zone">
+          <div class="reservoir-input-wrapper">
+            <label class="input-label">水库名称</label>
+            <el-input v-model="reservoirName" placeholder="请输入水库名称（选填）" clearable style="width:280px" />
+          </div>
+          <el-upload
+            ref="uploadRef"
+            drag
+            multiple
+            action="/api/upload"
+            :headers="uploadHeaders"
+            :data="{ reservoir_name: reservoirName }"
+            :on-success="handleUploadSuccess"
+            :on-error="handleUploadError"
+            :before-upload="handleBeforeUpload"
+            accept=".csv"
+          >
+            <el-icon :size="64" color="#409eff"><UploadFilled /></el-icon>
+            <p class="drop-text">拖拽 CSV 文件到此处，或点击选择文件</p>
+            <p class="drop-hint">支持 UTF-8 / GBK 编码，可批量上传</p>
+          </el-upload>
+        </div>
       </el-col>
       <el-col :span="8">
         <el-card header="上传说明">
@@ -34,7 +55,7 @@
       <template #extra>
         <el-button text type="primary" @click="$router.push('/tasks')">查看全部</el-button>
       </template>
-      <el-table :data="tasks" stripe v-loading="tableLoading" empty-text="暂无任务">
+      <el-table :data="taskStore.taskList" stripe v-loading="taskStore.loading.list" empty-text="暂无任务">
         <el-table-column prop="task_id" label="任务ID" min-width="200" show-overflow-tooltip />
         <el-table-column label="水库名称" min-width="160">
           <template #default="{ row }">
@@ -51,12 +72,9 @@
           </template>
         </el-table-column>
         <el-table-column prop="original_filename" label="原始文件" min-width="160" show-overflow-tooltip />
-        <el-table-column prop="status" label="状态" width="100">
+        <el-table-column label="状态" width="100">
           <template #default="{ row }">
-            <el-tag
-              :type="row.status === 'success' ? 'success' : row.status === 'failed' ? 'danger' : row.status === 'processing' ? 'warning' : 'info'"
-              size="small"
-            >{{ statusLabel(row.status) }}</el-tag>
+            <StatusTag :status="row.status" />
           </template>
         </el-table-column>
         <el-table-column prop="total_points" label="采样点" width="90" />
@@ -82,72 +100,143 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
-import { Edit } from '@element-plus/icons-vue'
-import FileDrop from '../components/FileDrop.vue'
-import api from '../api'
-import { useTask } from '../composables/useTask'
+import { ref, computed, onMounted } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { Edit, UploadFilled } from '@element-plus/icons-vue'
+import { useTaskStore } from '../stores/task'
+import { useStatus } from '../composables/useStatus'
+import { usePolling } from '../composables/usePolling'
+import StatusTag from '../components/common/StatusTag.vue'
 
-const { statusLabel } = useTask()
+const taskStore = useTaskStore()
+const { statusLabel } = useStatus()
 
-const tasks = ref([])
-const tableLoading = ref(false)
+const reservoirName = ref('')
+const uploading = ref(false)
+const uploadRef = ref(null)
 
+const uploadHeaders = computed(() => {
+  const token = localStorage.getItem('token')
+  return token ? { Authorization: `Bearer ${token}` } : {}
+})
+
+function handleBeforeUpload() {
+  uploading.value = true
+  return true
+}
+
+function handleUploadSuccess(res) {
+  uploading.value = false
+  const taskId = res.task_id || res?.datas?.task_id
+  if (taskId) {
+    ElMessage.success('上传成功')
+    uploadRef.value?.clearFiles()
+    taskStore.fetchTasks(1, 10)
+  }
+}
+
+function handleUploadError() {
+  uploading.value = false
+  ElMessage.error('上传失败')
+}
+
+// --- Inline edit ---
 const editingId = ref('')
 const editingName = ref('')
+
 function startEdit(task) {
   editingId.value = task.task_id
   editingName.value = task.reservoir_name || ''
 }
+
 async function saveEdit(task) {
   try {
-    await api.updateTask(task.task_id, { reservoir_name: editingName.value || '' })
+    await taskStore.updateTask(task.task_id, { reservoir_name: editingName.value || '' })
     task.reservoir_name = editingName.value
     ElMessage.success('水库名称已更新')
-  } catch { ElMessage.error('更新失败') }
-  finally { editingId.value = '' }
-}
-function cancelEdit() { editingId.value = '' }
-
-async function refreshTasks() {
-  tableLoading.value = true
-  try {
-    const res = await api.getTasks(1, 10)
-    tasks.value = res.items || []
+  } catch {
+    ElMessage.error('更新失败')
   } finally {
-    tableLoading.value = false
+    editingId.value = ''
   }
 }
 
-async function onDelete(taskId) {
-  try { await api.deleteTask(taskId); ElMessage.success('任务已删除'); refreshTasks() }
-  catch { ElMessage.error('删除失败，请稍后重试') }
+function cancelEdit() {
+  editingId.value = ''
 }
+
+// --- Delete ---
+async function onDelete(taskId) {
+  try {
+    await taskStore.deleteTask(taskId)
+    ElMessage.success('任务已删除')
+    taskStore.fetchTasks(1, 10)
+  } catch {
+    ElMessage.error('删除失败，请稍后重试')
+  }
+}
+
+// --- Process + polling ---
+const pollingTaskId = ref('')
+
+const { start: startPolling } = usePolling(
+  async () => {
+    await taskStore.pollTaskStatus(pollingTaskId.value)
+    const s = taskStore.currentStatus?.status
+    if (s === 'success' || s === 'failed') {
+      if (s === 'success') {
+        ElMessage.success('任务处理完成')
+      } else {
+        ElMessage.error('任务处理失败')
+      }
+      taskStore.fetchTasks(1, 10)
+      return true
+    }
+    return false
+  },
+  2000,
+  120000
+)
 
 async function onProcess(taskId) {
   try {
-    await api.processTask(taskId)
+    await taskStore.processTask(taskId)
     ElMessage.success('任务处理已启动')
-    const poll = setInterval(async () => {
-      try {
-        const res = await api.getTaskStatus(taskId)
-        if (res.status === 'success' || res.status === 'failed') {
-          clearInterval(poll)
-          if (res.status === 'success') ElMessage.success('任务处理完成')
-          else ElMessage.error('任务处理失败')
-          refreshTasks()
-        }
-      } catch {}
-    }, 2000)
-    setTimeout(() => clearInterval(poll), 120000)
-  } catch { ElMessage.error('启动处理失败') }
+    pollingTaskId.value = taskId
+    startPolling()
+  } catch {
+    ElMessage.error('启动处理失败')
+  }
 }
 
-function onFileUploaded() { refreshTasks() }
-onMounted(refreshTasks)
+onMounted(() => {
+  taskStore.fetchTasks(1, 10)
+})
 </script>
 
 <style scoped>
 .upload-view { max-width: 1400px; margin: 0 auto; }
+.upload-zone {
+  border: 2px dashed #d9d9d9;
+  border-radius: 12px;
+  padding: 24px 40px 40px;
+  text-align: center;
+  transition: border-color 0.3s;
+  background: #fafafa;
+}
+.reservoir-input-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+.input-label {
+  font-size: 14px;
+  color: #606266;
+  white-space: nowrap;
+  font-weight: 500;
+}
+.drop-text { font-size: 16px; color: #606266; margin: 16px 0 8px; }
+.drop-hint { font-size: 13px; color: #c0c4cc; }
 </style>
