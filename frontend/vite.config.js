@@ -5,7 +5,7 @@ export default defineConfig(({ mode }) => ({
   plugins: [
     vue(),
   ],
-  base: mode === 'production' ? '/static/' : '/',
+  base: '/ui/',
   server: {
     port: 3000,
     proxy: {

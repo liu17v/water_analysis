@@ -1,4 +1,4 @@
-import { createRouter, createWebHashHistory } from 'vue-router'
+import { createRouter, createWebHistory } from 'vue-router'
 
 const routes = [
   {
@@ -33,20 +33,20 @@ const routes = [
   },
   {
     path: '/task/:id/anomalies',
-    name: 'Anomalies',
-    component: () => import('../views/AnomalyView.vue'),
+    name: 'TaskAnomalies',
+    component: () => import('../views/AnomalyListView.vue'),
     meta: { requiresAuth: true },
   },
   {
     path: '/task/:id/report',
-    name: 'Report',
+    name: 'TaskReport',
     component: () => import('../views/ReportView.vue'),
     meta: { requiresAuth: true },
   },
   {
     path: '/anomalies',
     name: 'AnomalyManage',
-    component: () => import('../views/AnomalyView.vue'),
+    component: () => import('../views/AnomalyListView.vue'),
     meta: { requiresAuth: true },
   },
   {
@@ -65,30 +65,24 @@ const routes = [
     path: '/users',
     name: 'UserManage',
     component: () => import('../views/UserManageView.vue'),
-    meta: { requiresAuth: true },
-  },
-  {
-    path: '/map',
-    name: 'MapView',
-    component: () => import('../views/MapView.vue'),
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, requiresAdmin: true },
   },
 ]
 
 const router = createRouter({
-  history: createWebHashHistory(),
+  history: createWebHistory('/ui/'),
   routes,
 })
 
 router.beforeEach((to, _from, next) => {
   const token = localStorage.getItem('token')
   if (to.meta.requiresAuth && !token) {
-    next('/login')
-  } else if (to.meta.guest && token) {
-    next('/')
-  } else {
-    next()
+    return next('/login')
   }
+  if (to.meta.guest && token) {
+    return next('/')
+  }
+  next()
 })
 
 export default router

@@ -27,9 +27,7 @@ api.interceptors.response.use(
     if (err.response?.status === 401) {
       localStorage.removeItem('token')
       localStorage.removeItem('user')
-      if (window.location.hash !== '#/login') {
-        window.location.hash = '#/login'
-      }
+      window.location.href = '/ui/login'
     }
     ElMessage.error(err.response?.data?.detail || err.message || '网络错误')
     return Promise.reject(err)
