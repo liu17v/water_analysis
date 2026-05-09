@@ -1,9 +1,18 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from functools import lru_cache
+from pathlib import Path
+
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+
+
+def _resolve_dir(path: str) -> str:
+    if path and not Path(path).is_absolute():
+        return str(_PROJECT_ROOT / path)
+    return path
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(env_file=str(_PROJECT_ROOT / ".env"), env_file_encoding="utf-8", extra="ignore")
 
     # App
     APP_NAME: str = "水质三维智能监测与分析系统"
@@ -33,7 +42,7 @@ class Settings(BaseSettings):
     OPENAI_MODEL: str = "gpt-3.5-turbo"
     DEEPSEEK_API_KEY: str = ""
     DEEPSEEK_BASE_URL: str = "https://api.deepseek.com/v1"
-    DEEPSEEK_MODEL: str = "deepseek-v4-flash"
+    DEEPSEEK_MODEL: str = "deepseek-v4-pro"
 
     # JWT
     JWT_SECRET: str = "change-me-in-production"
@@ -42,10 +51,10 @@ class Settings(BaseSettings):
     USER_AUTHORIZATION: str = "False"
 
     # Storage
-    UPLOAD_DIR: str = "./app/data/uploads"
-    REPORT_DIR: str = "./app/data/reports"
-    STATIC_DIR: str = "./app/static"
-    THREED_DIR: str = "./app/data/3d"
+    UPLOAD_DIR: str = "./data/uploads"
+    REPORT_DIR: str = "./data/reports"
+    STATIC_DIR: str = "./static"
+    THREED_DIR: str = "./data/3d"
 
     # Spatial
     GRID_RESOLUTION: int = 50
@@ -76,4 +85,10 @@ class Settings(BaseSettings):
 
 @lru_cache()
 def get_settings() -> Settings:
-    return Settings()
+    s = Settings()
+    s.UPLOAD_DIR = _resolve_dir(s.UPLOAD_DIR)
+    s.REPORT_DIR = _resolve_dir(s.REPORT_DIR)
+    s.STATIC_DIR = _resolve_dir(s.STATIC_DIR)
+    s.THREED_DIR = _resolve_dir(s.THREED_DIR)
+    return s
+

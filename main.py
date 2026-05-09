@@ -11,13 +11,13 @@ from app.config.response import BusinessException
 from app.config.settings import get_settings
 from app.models import init_tables
 from app.services.milvus_service import connect as milvus_connect, init_collection
-from app.utils.auth_middleware import AuthMiddleware
-from app.utils.exceptions import (
+from app.middlewares.auth import AuthMiddleware
+from app.handlers.error_handlers import (
     business_exception_handler,
     http_exception_handler,
     server_exception_handler,
 )
-from app.utils.log_config import setup_logging, get_logger
+from app.config.logging import setup_logging, get_logger
 
 # 日志系统最先初始化
 setup_logging()
@@ -66,12 +66,12 @@ app.add_exception_handler(HTTPException, http_exception_handler)
 app.add_exception_handler(Exception, server_exception_handler)
 
 # 路由注册
-from app.controllers.upload import upload_router
-from app.controllers.task import task_router
-from app.controllers.anomaly import anomaly_router
-from app.controllers.report import report_router
-from app.controllers.auth import auth_router
-from app.controllers.dashboard import dashboard_router
+from app.routers.upload import upload_router
+from app.routers.task import task_router
+from app.routers.anomaly import anomaly_router
+from app.routers.report import report_router
+from app.routers.auth import auth_router
+from app.routers.dashboard import dashboard_router
 
 api_router = APIRouter()
 api_router.include_router(auth_router)

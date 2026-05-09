@@ -14,7 +14,7 @@ from app.services.visualization import generate_3d_html
 from app.services.milvus_service import connect, insert
 from app.models.task import TaskStatus
 from app.models.anomaly import AnomalyRecord
-from app.utils.log_config import get_logger
+from app.config.logging import get_logger
 
 logger = get_logger("services.celery")
 settings = get_settings()

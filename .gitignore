@@ -17,21 +17,21 @@ venv/
 .env
 
 # 日志
-app/logs/
-log/
+logs/
+server.log
 
 # 运行时数据
-app/data/uploads/*
-app/data/reports/*
-!app/data/uploads/.gitkeep
-!app/data/reports/.gitkeep
+data/uploads/*
+data/reports/*
+!data/uploads/.gitkeep
+!data/reports/.gitkeep
 
 # 静态生成
-app/static/3d/*.html
+static/3d/*.html
 
 # 前端
-app/frontend/node_modules/
-app/frontend/dist/
+frontend/node_modules/
+frontend/dist/
 
 # Docker
 docker-compose.override.yml

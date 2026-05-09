@@ -26,3 +26,4 @@ class Task(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     finished_at = Column(DateTime, nullable=True)
     report_path = Column(String(512), nullable=True)
+    report_phase = Column(String(64), nullable=True)  # null=idle, non-null=generating

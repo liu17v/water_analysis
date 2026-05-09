@@ -10,4 +10,6 @@ class SimilarTaskOut(BaseModel):
 
 
 class ReportOut(BaseModel):
-    report_url: str
+    report_url: str = ""
+    doc_url: str = ""
+    pdf_url: str = ""

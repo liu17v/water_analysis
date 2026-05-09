@@ -69,12 +69,13 @@
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│                      前端 (Vue3 + Element Plus)            │
-│    DashboardView │ UploadView │ TaskListView │ AnomalyManageView │
-│    TaskDetailView │ AnomalyView │ ReportView │ ReportManageView │
-│    FileDrop  │  ContourPanel  │  PointCloudFrame            │
+│                   前端 (Vue3 + Element Plus)               │
+│  frontend/                                                │
+│    DashboardView │ UploadView │ TaskListView │ MapView    │
+│    TaskDetailView │ AnomalyView │ ReportView │ CompareView│
+│    FileDrop  │  ContourPanel  │  PointCloudFrame           │
 └──────────────┬───────────────────────────────────────────┘
-               │ HTTP / WebSocket
+               │ HTTP (Vite dev proxy / Nginx production)
 ┌──────────────▼───────────────────────────────────────────┐
 │                   Nginx (反向代理 + 静态资源)              │
 └──────────────┬───────────────────────────────────────────┘
@@ -83,7 +84,7 @@
 │                 FastAPI (app/)                            │
 │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐    │
 │  │ upload   │ │  task    │ │ anomaly  │ │ report   │───┐ │
-│  │controller│ │controller│ │controller│ │controller│   │ │
+│  │ router   │ │ router   │ │ router   │ │ router   │   │ │
 │  └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘   │ │
 │       │            │            │            │           │ │
 │  ┌────▼────────────▼────────────▼────────────▼─────┐     │ │
@@ -94,8 +95,9 @@
 │  └─────────────────────────────────────────────────┘     │ │
 │                         │                                 │ │
 │  ┌──────────────────────▼──────────────────────────┐     │ │
-│  │                 config/                          │     │ │
-│  │  settings(.env) │ database(async) │ response     │     │ │
+│  │         config/  │  middlewares/  │  handlers/   │     │ │
+│  │  settings  │ database  │ response  │ logging     │     │ │
+│  │  auth.py   │ error_handlers.py                   │     │ │
 │  └─────────────────────────────────────────────────┘     │ │
 └──────┬──────────┬──────────┬──────────┬──────────────────┘
        │          │          │          │
@@ -153,94 +155,102 @@ CSV上传 → 编码检测 → 字段映射 → MySQL入库
 ```
 water_analysis/
 ├── main.py                     # FastAPI 应用入口 (lifespan, 路由, 中间件)
-├── init_db.py                  # 数据库初始化脚本 (建表 + Milvus 集合)
-├── seed_admin.py               # 创建默认管理员账号
 ├── requirements.txt            # Python 依赖
 ├── pyproject.toml              # 项目元数据 + Pytest/Ruff 配置
-├── Dockerfile                  # Docker 镜像构建
-├── docker-compose.yml          # 容器编排 (7 服务)
-├── nginx.conf                  # Nginx 反向代理配置
-├── Makefile                    # 常用命令快捷方式
 ├── .env                        # 环境变量 (敏感信息, gitignore)
 ├── .env.example                # 环境变量模板
 ├── .gitignore                  # Git 忽略规则
-├── .dockerignore               # Docker 构建忽略
 ├── .editorconfig               # 编辑器统一配置
+├── Makefile                    # 常用命令快捷方式
 ├── README.md                   # 本文件
+│
+├── scripts/                    # 一次性管理脚本
+│   ├── init_db.py              #   数据库初始化 (建表 + Milvus 集合)
+│   └── seed_admin.py           #   创建默认管理员账号
+│
+├── docs/                       # 项目文档
+│   └── core_requirements.md    #   核心需求说明
+│
+├── deploy/                     # 部署相关
+│   ├── Dockerfile              #   Docker 镜像构建
+│   ├── docker-compose.yml      #   容器编排 (7 服务)
+│   └── nginx.conf              #   Nginx 反向代理配置
 │
 ├── tests/                      # 测试套件
 │   ├── conftest.py             #   pytest fixtures (async client)
 │   ├── test_health.py          #   API 健康检查
 │   └── test_services.py        #   插值 + 特征提取
 │
-└── app/                        # 应用主目录
-    ├── config/                 # 配置层
-    │   ├── settings.py         #   环境变量 → pydantic BaseSettings
-    │   ├── database.py         #   异步引擎 + get_db() 依赖注入
-    │   └── response.py         #   统一响应 ApiResponse + BusinessException
-    │
-    ├── models/                 # 数据模型层 (ORM)
-    │   ├── __init__.py         #   自动扫描 + init_tables()
-    │   ├── user.py             #   用户表
-    │   ├── task.py             #   任务表 (状态机: pending→processing→success/failed)
-    │   ├── raw_data.py         #   原始水质数据表
-    │   └── anomaly.py          #   异常记录表
-    │
-    ├── schemas/                # 数据校验层 (Pydantic)
-    │   ├── upload.py           #   上传请求/响应
-    │   ├── task.py             #   任务状态/列表/可视化
-    │   ├── anomaly.py          #   异常点查询
-    │   └── report.py           #   报告生成
-    │
-    ├── controllers/            # 路由控制层
-    │   ├── upload.py           #   POST /api/upload
-    │   ├── task.py             #   GET /api/task/{id}/* (9 endpoints: status, visualization, contour_html,
-    │   │                       #     statistics, depth_profile, depth_profile_html, raw_data, tasks, delete)
-    │   ├── anomaly.py          #   GET /api/anomalies, GET/POST /api/task/{id}/anomalies*
-    │   └── report.py           #   GET /api/reports, GET /api/task/{id}/report_status,
-    │                           #     POST /api/task/{id}/similar|generate_report, DELETE /api/report/{id}
-    │
-    ├── services/               # 业务逻辑层
-    │   ├── data_service.py     #   CSV 解析、编码检测、字段映射、数据入库
-    │   ├── interpolation.py    #   IDW/Kriging 空间插值 (50×50 网格)
-    │   ├── anomaly_detector.py #   统计阈值 + Isolation Forest 双重检测
-    │   ├── feature_extractor.py#   13 维统计特征向量提取
-    │   ├── milvus_service.py   #   Milvus 连接/集合/插入/检索/删除
-    │   ├── visualization.py    #   Plotly 2D 等值线 + 3D 体渲染
-    │   ├── report_generator.py #   LLM 分析 → DOCX → LibreOffice PDF
-    │   └── celery_tasks.py     #   Celery 异步任务 (process_csv 完整流水线)
-    │
-    ├── utils/                  # 工具层
-    │   ├── log_config.py       #   彩色日志 + TimedRotatingFileHandler
-    │   ├── jwt_util.py         #   JWT 生成/验证 + 密码哈希
-    │   ├── auth_middleware.py   #   Starlette 认证中间件
-    │   └── exceptions.py       #   全局异常处理器
-    │
-    ├── frontend/               # Vue3 前端源码
-    │   ├── src/
-    │   │   ├── views/          #   页面视图 (7 个)
-    │   │   │                   #   DashboardView, UploadView, TaskListView,
-    │   │   │                   #   TaskDetailView, AnomalyView, AnomalyManageView,
-    │   │   │                   #   ReportView, ReportManageView
-    │   │   ├── components/     #   FileDrop, ContourPanel, PointCloudFrame
-    │   │   ├── router/         #   Vue Router 配置 (8 routes)
-    │   │   ├── api/            #   Axios API 封装 (15 methods)
-    │   │   ├── stores/         #   Pinia 状态管理
-    │   │   └── App.vue         #   根组件 (侧边栏 + 面包屑)
-    │   ├── vite.config.js      #   代理配置 (/api → :8000)
-    │   └── package.json        #   NPM 依赖
-    │
-    ├── static/                 # 前端构建产物 (Vite 输出)
-    │
-    ├── data/                   # 运行时数据
-    │   ├── uploads/            #   上传的 CSV 文件
-    │   ├── reports/            #   生成的 DOCX/PDF 报告
-    │   ├── 3d/                 #   生成的 3D 体渲染 HTML
-    │   └── samples/            #   样例数据集
-    │
-    └── logs/                   # 日志文件
-        ├── app.log             #   全量日志 (按日滚动, 保留 30 天)
-        └── app_error.log       #   错误日志
+├── app/                        # Python 应用包
+│   ├── config/                 # 配置层
+│   │   ├── settings.py         #   环境变量 → pydantic BaseSettings (路径自动解析)
+│   │   ├── database.py         #   异步引擎 + get_db() 依赖注入
+│   │   ├── response.py         #   统一响应 ApiResponse + BusinessException
+│   │   └── logging.py          #   彩色日志 + TimedRotatingFileHandler
+│   │
+│   ├── models/                 # 数据模型层 (ORM)
+│   │   ├── __init__.py         #   自动扫描 + init_tables()
+│   │   ├── user.py             #   用户表
+│   │   ├── task.py             #   任务表 (状态机: pending→processing→success/failed)
+│   │   ├── raw_data.py         #   原始水质数据表
+│   │   └── anomaly.py          #   异常记录表
+│   │
+│   ├── schemas/                # 数据校验层 (Pydantic)
+│   │   ├── upload.py           #   上传请求/响应
+│   │   ├── task.py             #   任务状态/列表/可视化
+│   │   ├── anomaly.py          #   异常点查询
+│   │   └── report.py           #   报告生成
+│   │
+│   ├── routers/                # API 路由层
+│   │   ├── auth.py             #   POST /api/auth/login|register|logout, GET /api/auth/me
+│   │   ├── upload.py           #   POST /api/upload
+│   │   ├── task.py             #   GET /api/task/{id}/* (visualization, statistics, depth_profile, raw_data 等)
+│   │   ├── anomaly.py          #   GET /api/anomalies, GET/POST /api/task/{id}/anomalies*
+│   │   ├── report.py           #   POST /api/task/{id}/similar|generate_report, GET /api/reports
+│   │   └── dashboard.py        #   GET /api/dashboard/stats
+│   │
+│   ├── services/               # 业务逻辑层
+│   │   ├── data_service.py     #   CSV 解析、编码检测、字段映射、数据入库
+│   │   ├── interpolation.py    #   IDW/Kriging 空间插值 (50×50 网格)
+│   │   ├── anomaly_detector.py #   统计阈值 + Isolation Forest 双重检测
+│   │   ├── feature_extractor.py#   13 维统计特征向量提取
+│   │   ├── milvus_service.py   #   Milvus 连接/集合/插入/检索/删除
+│   │   ├── visualization.py    #   Plotly 2D 等值线 + 3D 体渲染
+│   │   ├── report_generator.py #   LLM 分析 → 图表 → DOCX → LibreOffice PDF
+│   │   └── celery_tasks.py     #   Celery 异步任务 (process_csv 完整流水线)
+│   │
+│   ├── middlewares/            # 中间件
+│   │   └── auth.py             #   JWT 认证中间件 + get_current_user / require_admin
+│   │
+│   ├── handlers/               # 异常处理器
+│   │   └── error_handlers.py   #   BusinessException / HTTPException / 全局兜底
+│   │
+│   └── utils/                  # 工具层
+│       └── jwt_util.py         #   JWT 生成/验证 + 密码哈希
+│
+├── frontend/                   # Vue3 前端源码 (独立于 app/)
+│   ├── src/
+│   │   ├── views/              #   11 个页面视图
+│   │   ├── components/         #   FileDrop, ContourPanel, PointCloudFrame
+│   │   ├── composables/        #   useTask 等组合式函数
+│   │   ├── router/             #   Vue Router 配置
+│   │   ├── api/                #   按模块拆分: client/auth/task/report/anomaly/dashboard
+│   │   ├── stores/             #   Pinia 状态管理
+│   │   └── App.vue             #   根组件
+│   ├── vite.config.js          #   构建配置 (outDir: ../static)
+│   └── package.json            #   NPM 依赖
+│
+├── static/                     # 前端构建产物 (Vite 输出, FastAPI StaticFiles 服务)
+│
+├── data/                       # 运行时数据 (独立于 app/)
+│   ├── uploads/                #   上传的 CSV 文件
+│   ├── reports/                #   生成的 DOCX/PDF 报告
+│   ├── 3d/                     #   生成的 3D 体渲染 HTML
+│   └── samples/                #   样例数据集
+│
+└── logs/                       # 日志文件 (独立于 app/)
+    ├── app.log                 #   全量日志 (按日滚动, 保留 30 天)
+    └── app_error.log           #   错误日志
 ```
 
 ---
@@ -273,10 +283,10 @@ cp .env.example .env
 pip install -r requirements.txt
 
 # 4. 初始化数据库 (需先启动 MySQL 和 Milvus)
-python init_db.py
+python scripts/init_db.py
 
 # 4.5 创建默认管理员（可选，启用认证时需要）
-python seed_admin.py
+python scripts/seed_admin.py
 
 # 5. 启动 Celery Worker (新终端)
 celery -A app.services.celery_tasks worker --loglevel=info --concurrency=4
@@ -286,7 +296,7 @@ python main.py
 # 访问 http://localhost:8000/api/health 验证
 
 # 7. 启动前端 (可选, 新终端)
-cd app/frontend
+cd frontend
 npm install
 npm run dev
 # 访问 http://localhost:3000
@@ -296,20 +306,20 @@ npm run dev
 
 ```bash
 # 一键启动全部服务 (MySQL + Redis + Milvus + MinIO + FastAPI + Celery + Nginx)
-docker-compose up -d
+docker-compose -f deploy/docker-compose.yml up -d
 
 # 查看日志
-docker-compose logs -f fastapi
+docker-compose -f deploy/docker-compose.yml logs -f fastapi
 
 # 停止
-docker-compose down
+docker-compose -f deploy/docker-compose.yml down
 ```
 
 首次启动后需初始化数据库表结构并创建管理员：
 
 ```bash
-docker-compose exec fastapi python init_db.py
-docker-compose exec fastapi python seed_admin.py
+docker-compose -f deploy/docker-compose.yml exec fastapi python scripts/init_db.py
+docker-compose -f deploy/docker-compose.yml exec fastapi python scripts/seed_admin.py
 ```
 
 ---
@@ -393,7 +403,7 @@ USER_AUTHORIZATION=True
 首次使用前运行种子脚本创建管理员：
 
 ```bash
-python seed_admin.py
+python scripts/seed_admin.py
 ```
 
 ### 认证流程
@@ -626,10 +636,10 @@ pending ──→ processing ──→ success
 
 ## 前端
 
-Vue3 + Vite + Element Plus，位于 `app/frontend/`。
+Vue3 + Vite + Element Plus，独立于 `frontend/` 目录。
 
 ```bash
-cd app/frontend
+cd frontend
 
 # 开发
 npm run dev          # http://localhost:3000, 自动代理 /api → :8000
@@ -642,33 +652,37 @@ npm run build        # 输出到 ../static/ (FastAPI StaticFiles 直接服务)
 
 | 路由 | 组件 | 侧边栏 | 说明 |
 |------|------|--------|------|
-| `/` | DashboardView | 仪表盘 | 统计概览：任务分布图、异常指标柱状图、成功率仪表盘、最近任务 |
-| `/upload` | UploadView | 数据上传 | CSV 文件拖拽上传，自动创建分析任务 |
-| `/tasks` | TaskListView | 任务列表 | 分页任务列表，支持删除操作，查看/导出/报告快捷按钮 |
-| `/anomalies` | AnomalyManageView | 异常管理 | 跨任务异常点检索，按指标/任务筛选，分页浏览 |
-| `/reports` | ReportManageView | 报告管理 | 跨任务报告管理，下载/删除报告，跳转任务详情 |
-| `/task/:id` | TaskDetailView | (子页面) | 任务详情：数据统计、2D等值线、3D体渲染、深度剖面、原始数据 |
-| `/task/:id/anomalies` | AnomalyView | (子页面) | 单任务异常点列表 + CSV 导出 |
-| `/task/:id/report` | ReportView | (子页面) | LLM 智能报告生成 + Milvus 相似案例检索 |
+| `/` | DashboardView | 仪表盘 | ECharts 统计图表：任务趋势、异常分布、成功率仪表盘、最近任务 |
+| `/upload` | UploadView | 数据上传 | CSV 文件拖拽上传，支持填写水库名称，自动创建分析任务 |
+| `/tasks` | TaskListView | 任务列表 | 搜索/筛选/排序/批量操作，表格/卡片双视图切换，支持水库名称行内编辑 |
+| `/task/:id` | TaskDetailView | (子页面) | 6 标签页：信息/统计/2D等值线/3D体渲染/深度剖面/采样点地图/原始数据 |
+| `/task/:id/anomalies` | AnomalyView | (子页面) | 异常点列表 + 地图标记 + CSV 导出 |
+| `/task/:id/report` | ReportView | (子页面) | 智能报告生成 + DOCX/PDF 下载 + PDF 预览 + Milvus 相似案例 |
+| `/anomalies` | AnomalyView | 异常管理 | 跨任务异常检索，按指标/方法/深度/数值筛选 |
+| `/reports` | ReportManageView | 报告管理 | 跨任务报告列表，下载/删除操作 |
+| `/compare` | CompareView | 数据对比 | 双任务并排统计对比 |
+| `/map` | MapView | 采样地图 | Leaflet 地图展示采样点空间分布 |
+| `/users` | UserManageView | 用户管理 | 管理员用户增删改查 |
 
 ### 核心组件
 
 | 组件 | 说明 |
 |------|------|
-| `FileDrop` | 拖拽/点击上传，进度反馈 |
+| `FileDrop` | 拖拽/点击上传，水库名称输入，进度反馈 |
 | `ContourPanel` | 指标/深度选择 + Plotly 等值线（iframe 加载） |
 | `PointCloudFrame` | 指标选择 + Plotly 3D 体渲染（iframe 加载） |
 
 ### 功能特性
 
-- **仪表盘**：CSS 环形图 + 柱状图 + 仪表盘（无额外依赖），可点击卡片筛选任务
+- **仪表盘**：ECharts 交互图表（饼图/柱状图/折线图/仪表盘），30 秒自动刷新
 - **2D 等值线图**：Plotly Contour，11 段色阶，异常点红色 X 标注 + 悬停显示指标/数值
 - **3D 体渲染**：Plotly Volume 半透明渲染，12 层等值面，异常点 3D 叠加
-- **深度剖面图**：Plotly 折线图（均值线 + 范围带），Y 轴深度倒序
-- **原始数据预览**：分页表格，异常行红色高亮
-- **异常检测结果**：按指标筛选，标注检测方法（阈值/孤立森林），CSV 导出
-- **智能报告**：四步流程（统计→检测→LLM→存储），侧边栏显示存储位置说明
-- **相似案例**：Milvus 13 维向量检索，相似度百分比 + 颜色条
+- **深度剖面图**：Plotly 散点图，5 指标并排，异常点 X 高亮
+- **采样点地图**：Leaflet 地图，颜色按指标值渐变，点击弹窗详情
+- **原始数据预览**：分页表格，列排序搜索，异常行红色高亮
+- **异常检测结果**：按指标/方法/深度筛选，地图标记异常点，CSV 导出
+- **智能报告**：四步流程（统计→检测→LLM→存储），DOCX/PDF 双格式下载，iframe PDF 预览
+- **相似案例**：Milvus 13 维向量检索，相似度百分比 + 颜色条，可跳转详情
 
 ---
 
@@ -696,9 +710,9 @@ pytest --cov=app --cov-report=html
 
 ### 日志
 
-日志系统 (`app/utils/log_config.py`) 特性：
+日志系统 (`app/config/logging.py`) 特性：
 - **控制台**：ANSI 彩色输出（Windows/Unix）
-- **文件**：`app/logs/app.log`（全量）+ `app/logs/app_error.log`（ERROR+）
+- **文件**：`logs/app.log`（全量）+ `logs/app_error.log`（ERROR+）
 - **滚动**：按日分割，保留 30 天
 - **级别**：通过 `.env` 中 `LOG_LEVEL` 全局控制，支持模块级独立配置
 

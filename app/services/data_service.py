@@ -12,7 +12,7 @@ from app.config.settings import get_settings
 from app.config.response import BusinessException
 from app.models.task import Task, TaskStatus
 from app.models.raw_data import RawData
-from app.utils.log_config import get_logger
+from app.config.logging import get_logger
 
 logger = get_logger("services.data")
 settings = get_settings()
