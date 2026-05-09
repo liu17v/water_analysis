@@ -27,7 +27,7 @@ report_router = APIRouter(tags=["智能报告"])
 
 # 独立线程池（Milvus 专用），与 FastAPI 默认池隔离，防止互相影响
 _MILVUS_EXECUTOR = ThreadPoolExecutor(max_workers=2, thread_name_prefix="milvus_")
-_MILVUS_TIMEOUT = 6
+_MILVUS_TIMEOUT = 10
 
 # 轻量内存缓存：仅缓存线程池回调的实时百分比，DB 管控生命周期
 _gen_live_pct: dict = {}  # task_id -> int (0-100)
@@ -91,9 +91,6 @@ async def delete_report(task_id: str, db: AsyncSession = Depends(get_db)):
 
     if task.report_path and os.path.exists(task.report_path):
         os.remove(task.report_path)
-    pdf_path = os.path.join(settings.REPORT_DIR, f"{task_id}.pdf")
-    if os.path.exists(pdf_path):
-        os.remove(pdf_path)
 
     task.report_path = None
     await db.commit()
@@ -115,7 +112,11 @@ async def report_status(task_id: str, db: AsyncSession = Depends(get_db)):
     generating = task.report_phase is not None
 
     # 检测服务器重启导致的中断：DB 标记为生成中但进度为 0 且无报告文件
-    if generating and task.progress == 0 and not has_report:
+    # 同时检查内存进度表，避免后台任务正在运行却被误判
+    with _gen_live_lock:
+        live_pct = _gen_live_pct.get(task_id, -1)
+
+    if generating and task.progress == 0 and not has_report and live_pct < 0:
         task.report_phase = None
         task.progress = 100
         await db.commit()
@@ -126,31 +127,25 @@ async def report_status(task_id: str, db: AsyncSession = Depends(get_db)):
             "phase": "服务器重启导致生成中断，请点击按钮重新生成",
             "report_path": "",
             "doc_url": f"/reports/{task_id}.docx",
-            "pdf_url": f"/reports/{task_id}.pdf",
         })
-
-    with _gen_live_lock:
-        live_pct = _gen_live_pct.get(task_id, 0)
 
     if generating:
         return success(datas={
             "has_report": has_report,
             "generating": True,
-            "progress": live_pct,
+            "progress": live_pct if live_pct >= 0 else task.progress,
             "phase": task.report_phase or "",
             "report_path": _url_from_path(task.report_path or "", task_id),
             "doc_url": f"/reports/{task_id}.docx",
-            "pdf_url": f"/reports/{task_id}.pdf",
         })
 
     return success(datas={
         "has_report": has_report,
         "generating": False,
-        "progress": 0,
+        "progress": 100 if has_report else 0,
         "phase": "",
         "report_path": _url_from_path(task.report_path or "", task_id),
         "doc_url": f"/reports/{task_id}.docx",
-        "pdf_url": f"/reports/{task_id}.pdf",
     })
 
 
@@ -213,12 +208,13 @@ async def _run_report_generation(task_id: str):
             if not task:
                 return
 
-            # 阶段 1: 准备
+            # 阶段 1: 准备（progress 从 1 开始，避免 report_status 的服务器重启误判）
             task.report_phase = "正在准备..."
-            task.progress = 0
+            task.progress = 2
             await db.commit()
 
             task.report_phase = "正在加载数据..."
+            task.progress = 5
             await db.commit()
             rows = await DataService.get_raw_data(db, task_id)
             if not rows:
@@ -230,6 +226,7 @@ async def _run_report_generation(task_id: str):
 
             # 阶段 2: 异常记录
             task.report_phase = "正在加载异常记录..."
+            task.progress = 10
             await db.commit()
             result = await db.execute(
                 select(AnomalyRecord).where(AnomalyRecord.task_id == task_id)
@@ -243,6 +240,7 @@ async def _run_report_generation(task_id: str):
             # 阶段 3: 相似案例（独立线程池，快速失败）
             similar = []
             task.report_phase = "正在检索相似案例..."
+            task.progress = 15
             await db.commit()
             try:
                 loop = asyncio.get_running_loop()
@@ -279,6 +277,7 @@ async def _run_report_generation(task_id: str):
                     _gen_live_pct[task_id] = pct
 
             task.report_phase = "正在生成文档..."
+            task.progress = 20
             await db.commit()
             try:
                 gen_result = await loop.run_in_executor(
@@ -309,10 +308,6 @@ async def _run_report_generation(task_id: str):
             await db.commit()
             with _gen_live_lock:
                 _gen_live_pct.pop(task_id, None)
-
-            # PDF 后台异步生成
-            from app.services.report_generator import convert_pdf
-            asyncio.get_running_loop().run_in_executor(None, convert_pdf, docx_path, task_id)
 
             logger.info(f"报告生成: 完成 | task_id={task_id} | path={docx_path} | elapsed={time.time()-t_start:.1f}s")
 
@@ -354,7 +349,16 @@ async def generate_report(task_id: str, db: AsyncSession = Depends(get_db)):
     if task.status != TaskStatus.success:
         raise BusinessException(msg="任务尚未完成分析", code=400)
     if task.report_phase is not None:
-        raise BusinessException(msg="报告正在生成中，请稍后查看状态", code=400)
+        with _gen_live_lock:
+            live_pct = _gen_live_pct.get(task_id, -1)
+        if live_pct < 0:
+            # 内存无进度 → 上次生成已随服务器重启中断，自动清理残留状态
+            logger.warning(f"检测到残留 report_phase，自动清理 | task_id={task_id} | phase={task.report_phase}")
+            task.report_phase = None
+            task.progress = 100
+            await db.commit()
+        else:
+            raise BusinessException(msg="报告正在生成中，请稍后查看状态", code=400)
 
     bg_task = asyncio.create_task(_run_report_generation(task_id))
     _background_tasks.add(bg_task)

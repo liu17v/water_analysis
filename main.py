@@ -84,6 +84,9 @@ app.include_router(api_router)
 
 
 @app.get("/", include_in_schema=False)
+
+
+
 def root():
     return RedirectResponse(url="/static/index.html")
 

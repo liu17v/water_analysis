@@ -1,7 +1,6 @@
-"""报告生成：LLM 分析 + 可视化图表 + 专业 DOCX/PDF 导出"""
+"""报告生成：LLM 分析 + 可视化图表 + 专业 DOCX 导出"""
 import os
 import re
-import subprocess
 import io
 import threading
 import numpy as np
@@ -316,6 +315,20 @@ def generate_docx(llm_text: str, chart_images: list[bytes], task_info: dict, sta
     style.font.size = Pt(11)
     style.paragraph_format.line_spacing = 1.5
 
+    from docx.oxml import OxmlElement
+
+    # Heading 样式：黑色宋体
+    for i in range(1, 4):
+        h_style = doc.styles[f'Heading {i}']
+        h_style.font.name = '宋体'
+        h_style.font.color.rgb = RGBColor(0, 0, 0)
+        h_rPr = h_style.element.get_or_add_rPr()
+        h_rFonts = h_rPr.find(qn('w:rFonts'))
+        if h_rFonts is None:
+            h_rFonts = OxmlElement('w:rFonts')
+            h_rPr.append(h_rFonts)
+        h_rFonts.set(qn('w:eastAsia'), '宋体')
+
     # ── 封面 ──
     for _ in range(6):
         doc.add_paragraph()
@@ -324,13 +337,19 @@ def generate_docx(llm_text: str, chart_images: list[bytes], task_info: dict, sta
     run = title.add_run('水质巡航分析报告')
     run.font.size = Pt(28)
     run.font.bold = True
-    run.font.color.rgb = RGBColor(0x1a, 0x3a, 0x5c)
+    run.font.name = '宋体'
+    rPr = run._r.get_or_add_rPr()
+    rFonts = rPr.makeelement(qn('w:rFonts'), {qn('w:eastAsia'): '宋体'})
+    rPr.append(rFonts)
 
     subtitle = doc.add_paragraph()
     subtitle.alignment = WD_ALIGN_PARAGRAPH.CENTER
     run = subtitle.add_run(f"—— {task_info.get('reservoir_name', '未知水库')} ——")
     run.font.size = Pt(16)
-    run.font.color.rgb = RGBColor(0x40, 0x9e, 0xff)
+    run.font.name = '宋体'
+    rPr2 = run._r.get_or_add_rPr()
+    rFonts2 = rPr2.makeelement(qn('w:rFonts'), {qn('w:eastAsia'): '宋体'})
+    rPr2.append(rFonts2)
 
     doc.add_paragraph()
     info = doc.add_paragraph()
@@ -374,11 +393,15 @@ def generate_docx(llm_text: str, chart_images: list[bytes], task_info: dict, sta
         cell = table.rows[0].cells[j]
         cell.text = h
         cell.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
-        _set_cell_shading(cell, '409eff')
+        _set_cell_shading(cell, '333333')
         for run in cell.paragraphs[0].runs:
             run.font.color.rgb = RGBColor(0xff, 0xff, 0xff)
             run.font.bold = True
             run.font.size = Pt(9)
+            run.font.name = '宋体'
+            rPr = run._r.get_or_add_rPr()
+            rFonts = rPr.makeelement(qn('w:rFonts'), {qn('w:eastAsia'): '宋体'})
+            rPr.append(rFonts)
 
     for s in shorts:
         row = table.add_row()
@@ -459,26 +482,10 @@ def generate_docx(llm_text: str, chart_images: list[bytes], task_info: dict, sta
     return path
 
 
-def convert_pdf(docx_path: str, task_id: str) -> str:
-    pdf_path = os.path.join(settings.REPORT_DIR, f"{task_id}.pdf")
-    try:
-        import shutil
-        if not shutil.which("libreoffice") and not shutil.which("soffice"):
-            return ""
-        subprocess.run(
-            ["libreoffice", "--headless", "--convert-to", "pdf",
-             "--outdir", settings.REPORT_DIR, docx_path],
-            timeout=30, check=True, capture_output=True,
-        )
-        if os.path.exists(pdf_path):
-            return pdf_path
-    except Exception as e:
-        logger.warning(f"PDF 转换失败（需安装 LibreOffice）: {e}")
-    return ""
 
 
 def generate(task_info, rows, anomalies, similar=None, progress_callback=None):
-    """主流程：统计 → 图表+LLM并行 → DOCX。PDF 由调用方异步处理。
+    """主流程：统计 → 图表+LLM并行 → DOCX。
     progress_callback(progress: int, phase: str) — 用于外部进度追踪。"""
     task_name = task_info.get('reservoir_name', '') or task_info.get('id', '')[:8]
 
