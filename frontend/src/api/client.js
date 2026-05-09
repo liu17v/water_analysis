@@ -28,6 +28,7 @@ api.interceptors.response.use(
       localStorage.removeItem('token')
       localStorage.removeItem('user')
       window.location.href = '/ui/login'
+      return Promise.reject(new Error('登录已过期'))
     }
     ElMessage.error(err.response?.data?.detail || err.message || '网络错误')
     return Promise.reject(err)

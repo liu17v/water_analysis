@@ -77,10 +77,14 @@ const router = createRouter({
 router.beforeEach((to, _from, next) => {
   const token = localStorage.getItem('token')
   if (to.meta.requiresAuth && !token) {
-    return next('/login')
+    return { path: '/login' }
   }
   if (to.meta.guest && token) {
-    return next('/')
+    return { path: '/' }
+  }
+  if (to.meta.requiresAdmin) {
+    const user = JSON.parse(localStorage.getItem('user') || '{}')
+    if (user.role !== 'admin') return { path: '/' }
   }
   next()
 })
