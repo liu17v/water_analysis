@@ -9,7 +9,13 @@
           <div class="select-label">任务 A</div>
           <el-select v-model="taskAId" filterable placeholder="选择已完成的任务" style="width:100%"
             @change="onTaskAChange" clearable>
-            <el-option v-for="t in taskOptions" :key="t.task_id" :label="`${t.reservoir_name || '未知'} (${t.task_id?.substring(0,12)}...)`" :value="t.task_id" :disabled="t.task_id === taskBId" />
+            <el-option v-for="t in taskOptions" :key="t.task_id" :value="t.task_id" :disabled="t.task_id === taskBId">
+              <div style="display:flex;align-items:center;gap:6px">
+                <StatusTag :status="t.status" />
+                <span>{{ t.reservoir_name || '未知' }}</span>
+                <span style="color:#909399;font-size:12px;margin-left:auto">({{ t.task_id?.substring(0,8) }}...)</span>
+              </div>
+            </el-option>
           </el-select>
         </el-col>
         <el-col :span="4" style="text-align:center">
@@ -19,7 +25,13 @@
           <div class="select-label">任务 B</div>
           <el-select v-model="taskBId" filterable placeholder="选择已完成的任务" style="width:100%"
             @change="onTaskBChange" clearable>
-            <el-option v-for="t in taskOptions" :key="t.task_id" :label="`${t.reservoir_name || '未知'} (${t.task_id?.substring(0,12)}...)`" :value="t.task_id" :disabled="t.task_id === taskAId" />
+            <el-option v-for="t in taskOptions" :key="t.task_id" :value="t.task_id" :disabled="t.task_id === taskAId">
+              <div style="display:flex;align-items:center;gap:6px">
+                <StatusTag :status="t.status" />
+                <span>{{ t.reservoir_name || '未知' }}</span>
+                <span style="color:#909399;font-size:12px;margin-left:auto">({{ t.task_id?.substring(0,8) }}...)</span>
+              </div>
+            </el-option>
           </el-select>
         </el-col>
       </el-row>
@@ -100,7 +112,7 @@
         <div class="viz-controls" style="margin-bottom:12px">
           <span class="ctrl-label">指标</span>
           <el-select v-model="profileIndicator" @change="loadProfileComparison" style="width:180px">
-            <el-option v-for="o in indicatorOpts" :key="o.value" :label="o.label" :value="o.value" />
+            <el-option v-for="o in INDICATOR_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
           </el-select>
         </div>
         <v-chart v-if="profileOption" :option="profileOption" autoresize style="height:400px" />
@@ -111,44 +123,50 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import VChart from 'vue-echarts'
 import { use } from 'echarts/core'
 import { BarChart, LineChart } from 'echarts/charts'
 import { TitleComponent, TooltipComponent, LegendComponent, GridComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
-import api from '../api'
+import { useTaskStore } from '../stores/task'
+import { useIndicator } from '../composables/useIndicator'
+import StatusTag from '../components/common/StatusTag.vue'
 
 use([BarChart, LineChart, TitleComponent, TooltipComponent, LegendComponent, GridComponent, CanvasRenderer])
 
-const taskOptions = ref([])
+const taskStore = useTaskStore()
+const { shortLabel, INDICATOR_OPTIONS } = useIndicator()
+
 const taskAId = ref('')
 const taskBId = ref('')
 const statsA = ref(null)
 const statsB = ref(null)
-const profileIndicator = ref('chlorophyll')
+const profileIndicator = ref(INDICATOR_OPTIONS[0].value)
 
-const indicatorOpts = [
-  { label: '叶绿素', value: 'chlorophyll' },
-  { label: '溶解氧', value: 'dissolved_oxygen' },
-  { label: '水温', value: 'temperature' },
-  { label: 'pH', value: 'ph' },
-  { label: '浊度', value: 'turbidity' },
-]
+const taskOptions = computed(() =>
+  (taskStore.taskList || []).filter(t => t.status === 'success')
+)
 
 async function loadTaskList() {
   try {
-    const res = await api.getTasks(1, 100)
-    taskOptions.value = (res.items || []).filter(t => t.status === 'success')
+    await taskStore.fetchTasks(1, 100)
   } catch {}
 }
 
-async function loadStats(id) {
-  try { return await api.getStatistics(id) } catch { return null }
+async function onTaskAChange() {
+  if (!taskAId.value) { statsA.value = null; return }
+  await taskStore.fetchStatistics(taskAId.value)
+  statsA.value = taskStore.statistics
+  await loadProfileComparison()
 }
 
-async function onTaskAChange() { if (taskAId.value) { statsA.value = await loadStats(taskAId.value); await loadProfileComparison() } }
-async function onTaskBChange() { if (taskBId.value) { statsB.value = await loadStats(taskBId.value); await loadProfileComparison() } }
+async function onTaskBChange() {
+  if (!taskBId.value) { statsB.value = null; return }
+  await taskStore.fetchStatistics(taskBId.value)
+  statsB.value = taskStore.statistics
+  await loadProfileComparison()
+}
 
 const summaryCards = computed(() => {
   const a = statsA.value?.indicators ? Object.values(statsA.value.indicators) : []
@@ -186,7 +204,7 @@ const indicatorCompare = computed(() => {
     const bi = bInd[k] || {}
     const diff = (ai.mean != null && bi.mean != null) ? ((ai.mean - bi.mean) / (Math.abs(bi.mean) || 1) * 100) : null
     return {
-      label: ai.label || k,
+      label: shortLabel(k),
       mean_a: ai.mean, mean_b: bi.mean,
       std_a: ai.std, std_b: bi.std,
       anomaly_a: ai.anomaly_rate ?? 0, anomaly_b: bi.anomaly_rate ?? 0,
@@ -232,17 +250,17 @@ const profileOption = ref(null)
 async function loadProfileComparison() {
   if (!taskAId.value || !taskBId.value) return
   try {
-    const [pa, pb] = await Promise.all([
-      api.getDepthProfile(taskAId.value, profileIndicator.value),
-      api.getDepthProfile(taskBId.value, profileIndicator.value),
-    ])
+    await taskStore.fetchDepthProfile(taskAId.value, profileIndicator.value)
+    const pa = taskStore.depthProfile
+    await taskStore.fetchDepthProfile(taskBId.value, profileIndicator.value)
+    const pb = taskStore.depthProfile
     const depths = [...new Set([...(pa.profile || []).map(p => p.depth), ...(pb.profile || []).map(p => p.depth)])].sort((a, b) => a - b)
     const getMean = (prof, d) => { const p = (prof.profile || []).find(x => x.depth === d); return p?.mean ?? null }
     profileOption.value = {
       tooltip: { trigger: 'axis' },
       legend: { data: ['任务A', '任务B'], bottom: 0 },
       grid: { left: 60, right: 20, top: 10, bottom: 30 },
-      xAxis: { type: 'value', name: pa.label || profileIndicator.value },
+      xAxis: { type: 'value', name: shortLabel(profileIndicator.value) },
       yAxis: { type: 'category', data: depths, name: '深度(m)', inverse: true },
       series: [
         { name: '任务A', type: 'line', data: depths.map(d => getMean(pa, d)), smooth: true, lineStyle: { color: '#409eff', width: 2 }, itemStyle: { color: '#409eff' } },
