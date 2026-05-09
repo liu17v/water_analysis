@@ -22,13 +22,18 @@ export function usePolling(fn, interval = 2000, maxDuration = 0) {
 
     const tick = async () => {
       if (!isPolling.value) return
-      const shouldStop = await fn()
-      elapsed.value = Date.now() - startTime
-      if (shouldStop || (maxDuration > 0 && elapsed.value >= maxDuration)) {
-        stop()
-        return
+      try {
+        const shouldStop = await fn()
+        elapsed.value = Date.now() - startTime
+        if (!isPolling.value) return  // guard against stop() called during await
+        if (shouldStop || (maxDuration > 0 && elapsed.value >= maxDuration)) {
+          stop()
+          return
+        }
+        timer = setTimeout(tick, interval)
+      } catch {
+        stop()  // stop polling on error so caller can retry
       }
-      timer = setTimeout(tick, interval)
     }
 
     tick()
