@@ -1,52 +1,142 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
-import api from '../api'
+import { ref, reactive } from 'vue'
+import * as taskApi from '../api/task'
 
 export const useTaskStore = defineStore('task', () => {
-  const tasks = ref([])
-  const currentTask = ref(null)
-  const visualization = ref(null)
-  const anomalies = ref([])
+  // 任务列表
+  const taskList = ref([])
+  const total = ref(0)
+  const loading = reactive({ list: false, detail: false, stats: false, rawData: false, visualization: false })
+  const error = reactive({ list: null, detail: null, stats: null, rawData: null, visualization: null })
 
-  async function fetchTasks(page = 1) {
-    const res = await api.getTasks(page)
-    tasks.value = res.data
-    return res
+  // 当前任务详情
+  const currentTask = ref(null)
+  const currentStatus = ref(null)
+
+  // 统计数据
+  const statistics = ref(null)
+  const distribution = ref(null)
+  const rawData = ref({ items: [], total: 0 })
+  const visualization = ref(null)
+  const depthProfile = ref(null)
+
+  async function fetchTasks(page = 1, pageSize = 20, extra = {}) {
+    loading.list = true
+    error.list = null
+    try {
+      const res = await taskApi.getTasks(page, pageSize, extra)
+      taskList.value = res.items || res
+      total.value = res.total || 0
+      return res
+    } catch (e) {
+      error.list = e.message || '加载任务列表失败'
+      throw e
+    } finally {
+      loading.list = false
+    }
   }
 
-  async function fetchTaskStatus(taskId) {
-    const status = await api.getTaskStatus(taskId)
-    currentTask.value = status
-    return status
+  async function fetchTaskDetail(taskId) {
+    loading.detail = true
+    error.detail = null
+    try {
+      const res = await taskApi.getTasks(1, 1, { search: taskId })
+      currentTask.value = res.items?.[0] || null
+      return currentTask.value
+    } catch (e) {
+      error.detail = e.message || '加载任务详情失败'
+      throw e
+    } finally {
+      loading.detail = false
+    }
+  }
+
+  async function pollTaskStatus(taskId) {
+    try {
+      currentStatus.value = await taskApi.getTaskStatus(taskId)
+      return currentStatus.value.status !== 'processing'
+    } catch {
+      return false
+    }
+  }
+
+  async function fetchStatistics(taskId) {
+    loading.stats = true
+    error.stats = null
+    try {
+      statistics.value = await taskApi.getStatistics(taskId)
+    } catch (e) {
+      error.stats = e.message || '加载统计数据失败'
+      throw e
+    } finally {
+      loading.stats = false
+    }
+  }
+
+  async function fetchDistribution(taskId, indicator, bins = 20) {
+    distribution.value = await taskApi.getDistribution(taskId, indicator, bins)
+  }
+
+  async function fetchRawData(taskId, page = 1, pageSize = 50) {
+    loading.rawData = true
+    error.rawData = null
+    try {
+      const res = await taskApi.getRawData(taskId, page, pageSize)
+      rawData.value = res
+    } catch (e) {
+      error.rawData = e.message || '加载原始数据失败'
+      throw e
+    } finally {
+      loading.rawData = false
+    }
   }
 
   async function fetchVisualization(taskId, indicator, depth) {
-    const res = await api.getVisualization(taskId, indicator, depth)
-    visualization.value = res.data
-    return res.data
+    loading.visualization = true
+    error.visualization = null
+    try {
+      visualization.value = await taskApi.getVisualization(taskId, indicator, depth)
+    } catch (e) {
+      error.visualization = e.message || '加载可视化数据失败'
+      throw e
+    } finally {
+      loading.visualization = false
+    }
   }
 
-  async function fetchAnomalies(taskId, page = 1) {
-    const res = await api.getAnomalies(taskId, page)
-    anomalies.value = res.data
-    return res
+  async function fetchDepthProfile(taskId, indicator) {
+    depthProfile.value = await taskApi.getDepthProfile(taskId, indicator)
+  }
+
+  async function deleteTask(taskId) {
+    await taskApi.deleteTask(taskId)
+    taskList.value = taskList.value.filter(t => t.task_id !== taskId)
+  }
+
+  async function updateTask(taskId, data) {
+    await taskApi.updateTask(taskId, data)
+  }
+
+  async function processTask(taskId) {
+    await taskApi.processTask(taskId)
   }
 
   function clear() {
     currentTask.value = null
+    currentStatus.value = null
+    statistics.value = null
+    distribution.value = null
+    rawData.value = { items: [], total: 0 }
     visualization.value = null
-    anomalies.value = []
+    depthProfile.value = null
   }
 
   return {
-    tasks,
-    currentTask,
-    visualization,
-    anomalies,
-    fetchTasks,
-    fetchTaskStatus,
-    fetchVisualization,
-    fetchAnomalies,
-    clear,
+    taskList, total, loading, error,
+    currentTask, currentStatus,
+    statistics, distribution, rawData, visualization, depthProfile,
+    fetchTasks, fetchTaskDetail, pollTaskStatus,
+    fetchStatistics, fetchDistribution, fetchRawData, fetchVisualization, fetchDepthProfile,
+    deleteTask, updateTask, processTask, clear,
   }
 })
