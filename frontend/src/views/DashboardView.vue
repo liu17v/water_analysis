@@ -70,8 +70,8 @@
         </el-col>
         <el-col :span="12">
           <el-card header="近期异常预警" shadow="hover">
-            <div v-if="recentAnomalies.length" class="anomaly-feed">
-              <div v-for="(a, i) in recentAnomalies" :key="i" class="anomaly-item">
+            <div v-if="(stats.recent_anomalies || []).length" class="anomaly-feed">
+              <div v-for="(a, i) in stats.recent_anomalies" :key="i" class="anomaly-item">
                 <el-tag :type="a.method === 'threshold' ? 'danger' : 'warning'" size="small" effect="dark">
                   {{ a.method === 'threshold' ? '阈值' : '森林' }}
                 </el-tag>
@@ -101,12 +101,12 @@
         <template #extra>
           <el-button text type="primary" @click="$router.push('/tasks')">查看全部 →</el-button>
         </template>
-        <el-table :data="recentTasks" stripe size="small" empty-text="暂无任务，请先上传数据">
+        <el-table :data="taskStore.taskList" stripe size="small" empty-text="暂无任务，请先上传数据">
         <el-table-column prop="task_id" label="任务ID" min-width="200" show-overflow-tooltip />
         <el-table-column prop="reservoir_name" label="水库名称" min-width="120" />
         <el-table-column prop="status" label="状态" width="90">
           <template #default="{ row }">
-            <el-tag :type="statusType(row.status)" size="small">{{ statusLabel(row.status) }}</el-tag>
+            <StatusTag :status="row.status" />
           </template>
         </el-table-column>
         <el-table-column prop="total_points" label="采样点" width="80" sortable />
@@ -130,7 +130,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { List, CircleCheck, Loading, WarningFilled, TrendCharts } from '@element-plus/icons-vue'
 import VChart from 'vue-echarts'
@@ -141,29 +141,30 @@ import { CanvasRenderer } from 'echarts/renderers'
 
 use([PieChart, BarChart, LineChart, GaugeChart, TitleComponent, TooltipComponent, LegendComponent, GridComponent, CanvasRenderer])
 
-import api from '../api'
-import { useTask } from '../composables/useTask'
+import { useDashboardStore } from '../stores/dashboard'
+import { useTaskStore } from '../stores/task'
+import { useIndicator } from '../composables/useIndicator'
+import StatusTag from '../components/common/StatusTag.vue'
 
-const { statusLabel, statusType, shortLabel } = useTask()
-
+const dashboardStore = useDashboardStore()
+const taskStore = useTaskStore()
 const router = useRouter()
-const loading = ref(true)
-const recentTasks = ref([])
+
+const { shortLabel } = useIndicator()
+
+const loading = computed(() => dashboardStore.loading)
+const stats = computed(() => dashboardStore.stats || {})
+
 let pollTimer = null
 
-const d = reactive({
-  total_tasks: 0, status_counts: {}, total_anomalies: 0,
-  anomaly_by_indicator: {}, task_trend: [], success_rate: 0, recent_anomalies: [],
-})
-
 const statCards = computed(() => [
-  { label: '总任务数', value: d.total_tasks, icon: List, color: '#409eff', bg: '#ecf5ff',
+  { label: '总任务数', value: stats.value.total_tasks || 0, icon: List, color: '#409eff', bg: '#ecf5ff',
     onClick: () => router.push('/tasks') },
-  { label: '已完成', value: d.status_counts.success || 0, icon: CircleCheck, color: '#67c23a', bg: '#f0f9eb',
+  { label: '已完成', value: (stats.value.status_counts?.success) || 0, icon: CircleCheck, color: '#67c23a', bg: '#f0f9eb',
     onClick: () => router.push('/tasks') },
-  { label: '处理中', value: d.status_counts.processing || 0, icon: Loading, color: '#e6a23c', bg: '#fdf6ec',
+  { label: '处理中', value: (stats.value.status_counts?.processing) || 0, icon: Loading, color: '#e6a23c', bg: '#fdf6ec',
     onClick: () => router.push('/tasks') },
-  { label: '累计异常点', value: d.total_anomalies, icon: WarningFilled, color: '#f56c6c', bg: '#fef0f0',
+  { label: '累计异常点', value: stats.value.total_anomalies || 0, icon: WarningFilled, color: '#f56c6c', bg: '#fef0f0',
     onClick: () => router.push('/anomalies') },
 ])
 
@@ -174,16 +175,16 @@ const statusPieOption = computed(() => ({
     type: 'pie', radius: ['50%', '75%'], center: ['50%', '45%'],
     label: { show: false }, emphasis: { label: { show: true, fontSize: 16, fontWeight: 'bold' } },
     data: [
-      { value: d.status_counts.success || 0, name: '已完成', itemStyle: { color: '#67c23a' } },
-      { value: d.status_counts.processing || 0, name: '处理中', itemStyle: { color: '#e6a23c' } },
-      { value: d.status_counts.pending || 0, name: '待处理', itemStyle: { color: '#909399' } },
-      { value: d.status_counts.failed || 0, name: '失败', itemStyle: { color: '#f56c6c' } },
+      { value: stats.value.status_counts?.success || 0, name: '已完成', itemStyle: { color: '#67c23a' } },
+      { value: stats.value.status_counts?.processing || 0, name: '处理中', itemStyle: { color: '#e6a23c' } },
+      { value: stats.value.status_counts?.pending || 0, name: '待处理', itemStyle: { color: '#909399' } },
+      { value: stats.value.status_counts?.failed || 0, name: '失败', itemStyle: { color: '#f56c6c' } },
     ],
   }],
 }))
 
 const anomalyBarOption = computed(() => {
-  const entries = Object.entries(d.anomaly_by_indicator).filter(([, v]) => v > 0)
+  const entries = Object.entries(stats.value.anomaly_by_indicator || {}).filter(([, v]) => v > 0)
   if (!entries.length) return null
   const colors = ['#f56c6c', '#e6a23c', '#409eff', '#67c23a', '#909399']
   return {
@@ -201,10 +202,10 @@ const anomalyBarOption = computed(() => {
 const trendLineOption = computed(() => ({
   tooltip: { trigger: 'axis' },
   grid: { left: 40, right: 20, top: 10, bottom: 20 },
-  xAxis: { type: 'category', data: d.task_trend.map(t => t.date), axisLabel: { fontSize: 10, rotate: 30 } },
+  xAxis: { type: 'category', data: (stats.value.trend_data || []).map(t => t.date), axisLabel: { fontSize: 10, rotate: 30 } },
   yAxis: { type: 'value', minInterval: 1 },
   series: [{
-    type: 'line', data: d.task_trend.map(t => t.count),
+    type: 'line', data: (stats.value.trend_data || []).map(t => t.count),
     smooth: true, lineStyle: { color: '#409eff', width: 2 },
     areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
       colorStops: [{ offset: 0, color: 'rgba(64,158,255,0.25)' }, { offset: 1, color: 'rgba(64,158,255,0.02)' }] } },
@@ -213,8 +214,8 @@ const trendLineOption = computed(() => ({
 }))
 
 const successCompareOption = computed(() => {
-  const sc = d.status_counts.success || 0
-  const fc = d.status_counts.failed || 0
+  const sc = stats.value.status_counts?.success || 0
+  const fc = stats.value.status_counts?.failed || 0
   const total = (sc + fc) || 1
   return {
     tooltip: { trigger: 'axis' },
@@ -232,28 +233,21 @@ const successCompareOption = computed(() => {
 
 async function loadData() {
   try {
-    const res = await api.getDashboardStats()
-    Object.assign(d, res)
-    if (!res.task_trend || !res.task_trend.length) {
-      const tasksRes = await api.getTasks(1, 100)
-      const items = tasksRes.items || []
-      recentTasks.value = items.slice(0, 10)
-      if (!res.total_tasks) {
-        d.total_tasks = tasksRes.total || items.length
-        d.status_counts = {
-          success: items.filter(t => t.status === 'success').length,
-          processing: items.filter(t => t.status === 'processing').length,
-          pending: items.filter(t => t.status === 'pending').length,
-          failed: items.filter(t => t.status === 'failed').length,
-        }
-        d.total_anomalies = items.reduce((s, t) => s + (t.anomaly_count || 0), 0)
-        d.success_rate = d.total_tasks ? Math.round(d.status_counts.success / d.total_tasks * 100) : 0
+    await dashboardStore.fetchStats()
+    const s = dashboardStore.stats
+    if (s && (!s.trend_data || !s.trend_data.length)) {
+      await taskStore.fetchTasks(1, 100)
+      if (!s.total_tasks) {
+        const items = taskStore.taskList || []
+        const counts = { success: 0, processing: 0, pending: 0, failed: 0 }
+        items.forEach(t => { if (counts[t.status] !== undefined) counts[t.status]++ })
+        s.total_tasks = items.length
+        s.status_counts = counts
+        s.total_anomalies = items.reduce((sum, t) => sum + (t.anomaly_count || 0), 0)
+        s.success_rate = s.total_tasks ? Math.round(counts.success / s.total_tasks * 100) : 0
       }
-    } else {
-      recentTasks.value = []
     }
   } catch { /* ignore */ }
-  finally { loading.value = false }
 }
 
 let visibilityHandler = null
