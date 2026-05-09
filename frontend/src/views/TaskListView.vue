@@ -47,11 +47,11 @@
 
     <!-- Table View -->
     <el-card v-if="viewMode === 'table'" style="margin-top:12px">
-      <el-skeleton :loading="loading" animated>
+      <el-skeleton :loading="taskStore.loading.list" animated>
         <template #template>
           <el-skeleton-item v-for="i in 8" :key="i" variant="text" style="height:32px;margin-bottom:6px" />
         </template>
-        <el-table :data="tasks" stripe size="small"
+        <el-table :data="taskStore.taskList" stripe size="small"
           empty-text="暂无任务" @selection-change="onSelect" @sort-change="onSort">
           <el-table-column type="selection" width="40" />
           <el-table-column prop="task_id" label="任务ID" min-width="200" show-overflow-tooltip sortable="custom" />
@@ -72,7 +72,7 @@
           <el-table-column prop="original_filename" label="原始文件" min-width="160" show-overflow-tooltip />
           <el-table-column prop="status" label="状态" width="90">
             <template #default="{ row }">
-              <el-tag :type="statusType(row.status)" size="small">{{ statusLabel(row.status) }}</el-tag>
+              <StatusTag :status="row.status" />
             </template>
           </el-table-column>
           <el-table-column prop="total_points" label="采样点" width="80" sortable="custom" />
@@ -98,9 +98,9 @@
       </el-skeleton>
 
       <div class="pagination-row">
-        <span class="total-text">共 {{ total }} 条</span>
+        <span class="total-text">共 {{ taskStore.total }} 条</span>
         <el-pagination
-          v-model:current-page="page" :page-size="pageSize" :total="total"
+          v-model:current-page="page" :page-size="pageSize" :total="taskStore.total"
           :page-sizes="[20, 50, 100]" layout="sizes, prev, pager, next, jumper"
           @size-change="onPageSizeChange" @current-change="fetchData"
         />
@@ -109,7 +109,7 @@
 
     <!-- Card View -->
     <div v-else class="card-grid">
-      <el-skeleton v-if="loading" animated style="grid-column:1/-1;display:flex;gap:16px;flex-wrap:wrap">
+      <el-skeleton v-if="taskStore.loading.list" animated style="grid-column:1/-1;display:flex;gap:16px;flex-wrap:wrap">
         <el-card v-for="i in 6" :key="i" style="width:280px">
           <el-skeleton-item variant="text" style="width:40%" />
           <el-skeleton-item variant="text" style="width:60%;margin-top:8px" />
@@ -117,10 +117,10 @@
         </el-card>
       </el-skeleton>
       <template v-else>
-        <el-card v-for="t in tasks" :key="t.task_id" shadow="hover" class="task-card"
+        <el-card v-for="t in taskStore.taskList" :key="t.task_id" shadow="hover" class="task-card"
           @click="$router.push(t.status === 'success' ? `/task/${t.task_id}` : `/task/${t.task_id}`)">
           <div class="card-top">
-            <el-tag :type="statusType(t.status)" size="small">{{ statusLabel(t.status) }}</el-tag>
+            <StatusTag :status="t.status" />
             <span class="card-id">{{ t.task_id?.substring(0, 8) }}...</span>
           </div>
           <div class="card-name">
@@ -142,7 +142,7 @@
             <el-col :span="8"><div class="card-stat"><div class="card-num small">{{ t.created_at?.substring(0,10) }}</div><div class="card-lbl">日期</div></div></el-col>
           </el-row>
         </el-card>
-        <div v-if="tasks.length === 0 && !loading" class="card-empty">
+        <div v-if="taskStore.taskList.length === 0 && !taskStore.loading.list" class="card-empty">
           <el-empty description="暂无匹配的任务" :image-size="80" />
         </div>
       </template>
@@ -154,16 +154,17 @@
 import { ref, onMounted } from 'vue'
 import { Plus, Search, Refresh, List, Grid, Delete, Edit } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import api from '../api'
-import { useTask } from '../composables/useTask'
+import { useTaskStore } from '../stores/task'
+import { useStatus } from '../composables/useStatus'
+import { useIndicator } from '../composables/useIndicator'
+import StatusTag from '../components/common/StatusTag.vue'
 
-const { statusLabel, statusType } = useTask()
+const taskStore = useTaskStore()
+const { statusLabel, statusType } = useStatus()
+useIndicator()
 
-const tasks = ref([])
-const total = ref(0)
 const page = ref(1)
 const pageSize = ref(20)
-const loading = ref(true)
 const batchLoading = ref(false)
 const selected = ref([])
 const viewMode = ref('table')
@@ -176,22 +177,25 @@ const sortOrder = ref('')
 
 const editingId = ref('')
 const editingName = ref('')
+
 function startEdit(task) {
   editingId.value = task.task_id
   editingName.value = task.reservoir_name || ''
 }
+
 async function saveEdit(task) {
   try {
-    await api.updateTask(task.task_id, { reservoir_name: editingName.value || '' })
-    task.reservoir_name = editingName.value
+    await taskStore.updateTask(task.task_id, { reservoir_name: editingName.value || '' })
+    const item = taskStore.taskList.find(t => t.task_id === task.task_id)
+    if (item) item.reservoir_name = editingName.value
     ElMessage.success('水库名称已更新')
   } catch { ElMessage.error('更新失败') }
   finally { editingId.value = '' }
 }
+
 function cancelEdit() { editingId.value = '' }
 
 async function fetchData() {
-  loading.value = true
   try {
     const extra = {}
     if (search.value) extra.search = search.value
@@ -204,10 +208,8 @@ async function fetchData() {
       extra.sort = sortField.value
       extra.order = sortOrder.value || 'desc'
     }
-    const res = await api.getTasks(page.value, pageSize.value, extra)
-    tasks.value = res.items || []
-    total.value = res.total || 0
-  } finally { loading.value = false }
+    await taskStore.fetchTasks(page.value, pageSize.value, extra)
+  } catch { /* error handled by store */ }
 }
 
 function onSearch() { page.value = 1; fetchData() }
@@ -225,13 +227,13 @@ function onSelect(rows) { selected.value = rows }
 function onPageSizeChange(size) { pageSize.value = size; onSearch() }
 
 async function onDelete(taskId) {
-  try { await api.deleteTask(taskId); ElMessage.success('任务已删除'); fetchData() }
+  try { await taskStore.deleteTask(taskId); ElMessage.success('任务已删除'); fetchData() }
   catch { ElMessage.error('删除失败，请稍后重试') }
 }
 
 async function onProcess(taskId) {
   try {
-    await api.processTask(taskId)
+    await taskStore.processTask(taskId)
     ElMessage.success('任务处理已启动')
     fetchData()
   } catch { ElMessage.error('启动处理失败') }
@@ -242,7 +244,7 @@ async function batchDelete() {
     await ElMessageBox.confirm(`确定删除选中的 ${selected.value.length} 个任务？此操作不可恢复。`, '批量删除', { type: 'warning' })
     batchLoading.value = true
     for (const t of selected.value) {
-      await api.deleteTask(t.task_id).catch(() => {})
+      await taskStore.deleteTask(t.task_id).catch(() => {})
     }
     ElMessage.success('批量删除完成')
     selected.value = []
@@ -273,6 +275,6 @@ onMounted(fetchData)
 .card-num { font-size: 20px; font-weight: 700; color: #303133; }
 .card-num.red { color: #f56c6c; }
 .card-num.small { font-size: 14px; }
-.card-lbl { font-size: 11px; color: #c0c4cc; }
+.card-lbl { font-size: 11px; color: #c4c4cc; }
 .card-empty { grid-column: 1 / -1; }
 </style>
