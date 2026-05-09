@@ -94,7 +94,9 @@
 import { ref, reactive, onMounted } from 'vue'
 import { Search, Refresh, Plus, Edit, Delete } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import api from '../api'
+import { useAuthStore } from '../stores/auth'
+
+const authStore = useAuthStore()
 
 const users = ref([])
 const total = ref(0)
@@ -120,7 +122,7 @@ async function fetchData() {
   try {
     const params = { page: page.value, page_size: pageSize.value }
     if (search.value) params.search = search.value
-    const res = await api.getUsers(page.value, pageSize.value)
+    const res = await authStore.getUsers(page.value, pageSize.value)
     users.value = (res.items || []).filter(u => !search.value || u.username.includes(search.value))
     total.value = res.total || 0
   } finally { loading.value = false }
@@ -159,10 +161,10 @@ async function handleSubmit() {
     if (isEdit.value) {
       const data = { username: form.username, role: form.role }
       if (form.password) data.password = form.password
-      await api.updateUser(editUserId.value, data)
+      await authStore.updateUser(editUserId.value, data)
       ElMessage.success('用户信息已更新')
     } else {
-      await api.createUser({ username: form.username, password: form.password, role: form.role })
+      await authStore.createUser({ username: form.username, password: form.password, role: form.role })
       ElMessage.success('用户已创建')
     }
     dialogVisible.value = false
@@ -173,7 +175,7 @@ async function handleSubmit() {
 
 async function handleDelete(userId) {
   try {
-    await api.deleteUser(userId)
+    await authStore.deleteUser(userId)
     ElMessage.success('用户已删除')
     fetchData()
   } catch { /* handled by interceptor */ }
