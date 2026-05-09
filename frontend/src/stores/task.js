@@ -74,7 +74,11 @@ export const useTaskStore = defineStore('task', () => {
   }
 
   async function fetchDistribution(taskId, indicator, bins = 20) {
-    distribution.value = await taskApi.getDistribution(taskId, indicator, bins)
+    try {
+      distribution.value = await taskApi.getDistribution(taskId, indicator, bins)
+    } catch (e) {
+      console.error('加载分布数据失败', e)
+    }
   }
 
   async function fetchRawData(taskId, page = 1, pageSize = 50) {
@@ -105,20 +109,39 @@ export const useTaskStore = defineStore('task', () => {
   }
 
   async function fetchDepthProfile(taskId, indicator) {
-    depthProfile.value = await taskApi.getDepthProfile(taskId, indicator)
+    try {
+      depthProfile.value = await taskApi.getDepthProfile(taskId, indicator)
+    } catch (e) {
+      console.error('加载深度剖面失败', e)
+    }
   }
 
   async function deleteTask(taskId) {
-    await taskApi.deleteTask(taskId)
-    taskList.value = taskList.value.filter(t => t.task_id !== taskId)
+    try {
+      await taskApi.deleteTask(taskId)
+      taskList.value = taskList.value.filter(t => t.task_id !== taskId)
+    } catch (e) {
+      console.error('删除任务失败', e)
+      throw e
+    }
   }
 
   async function updateTask(taskId, data) {
-    await taskApi.updateTask(taskId, data)
+    try {
+      await taskApi.updateTask(taskId, data)
+    } catch (e) {
+      console.error('更新任务失败', e)
+      throw e
+    }
   }
 
   async function processTask(taskId) {
-    await taskApi.processTask(taskId)
+    try {
+      await taskApi.processTask(taskId)
+    } catch (e) {
+      console.error('重新处理任务失败', e)
+      throw e
+    }
   }
 
   function clear() {

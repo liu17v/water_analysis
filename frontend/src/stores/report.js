@@ -11,8 +11,13 @@ export const useReportStore = defineStore('report', () => {
   const error = reactive({ list: null, generate: null, similar: null })
 
   async function fetchReportStatus(taskId) {
-    reportStatus.value = await reportApi.getReportStatus(taskId)
-    return reportStatus.value
+    try {
+      reportStatus.value = await reportApi.getReportStatus(taskId)
+      return reportStatus.value
+    } catch (e) {
+      console.error('获取报告状态失败', e)
+      return null
+    }
   }
 
   async function generateReport(taskId) {
@@ -59,8 +64,13 @@ export const useReportStore = defineStore('report', () => {
   }
 
   async function deleteReport(taskId) {
-    await reportApi.deleteReport(taskId)
-    reportList.value = reportList.value.filter(r => r.task_id !== taskId)
+    try {
+      await reportApi.deleteReport(taskId)
+      reportList.value = reportList.value.filter(r => r.task_id !== taskId)
+    } catch (e) {
+      console.error('删除报告失败', e)
+      throw e
+    }
   }
 
   return {
