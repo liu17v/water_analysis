@@ -4,21 +4,21 @@
     <div class="report-sidebar">
       <div class="sidebar-section">
         <h4><el-icon><InfoFilled /></el-icon> 任务信息</h4>
-        <div class="info-item" v-if="taskInfo">
+        <div class="info-item" v-if="taskStore.currentStatus">
           <span class="info-label">任务ID</span>
-          <span class="info-value" :title="taskInfo.task_id">{{ taskInfo.task_id?.substring(0, 8) }}...</span>
+          <span class="info-value" :title="taskStore.currentStatus.task_id">{{ taskStore.currentStatus.task_id?.substring(0, 8) }}...</span>
         </div>
-        <div class="info-item" v-if="taskInfo">
+        <div class="info-item" v-if="taskStore.currentStatus">
           <span class="info-label">水库名称</span>
-          <span class="info-value">{{ taskInfo.reservoir_name || '未知' }}</span>
+          <span class="info-value">{{ taskStore.currentStatus.reservoir_name || '未知' }}</span>
         </div>
-        <div class="info-item" v-if="taskInfo">
+        <div class="info-item" v-if="taskStore.currentStatus">
           <span class="info-label">采样点数</span>
-          <span class="info-value">{{ taskInfo.total_points }}</span>
+          <span class="info-value">{{ taskStore.currentStatus.total_points }}</span>
         </div>
-        <div class="info-item" v-if="taskInfo">
+        <div class="info-item" v-if="taskStore.currentStatus">
           <span class="info-label">异常点数</span>
-          <span class="info-value">{{ taskInfo.anomaly_count }}</span>
+          <span class="info-value">{{ taskStore.currentStatus.anomaly_count }}</span>
         </div>
       </div>
 
@@ -35,12 +35,12 @@
           </div>
         </div>
         <div class="storage-note">
-          <p>报告文件以 <b>.docx / .pdf</b> 格式存储在本地磁盘</p>
+          <p>报告文件以 <b>.docx</b> 格式存储在本地磁盘</p>
           <p>Milvus 存储 <b>13维特征向量</b> 用于相似案例检索，不存储报告文件</p>
         </div>
-        <div v-if="reportUrl" class="file-info">
+        <div v-if="generated" class="file-info">
           <el-divider style="margin:12px 0" />
-          <p class="file-path">📄 {{ reportUrl }}</p>
+          <p class="file-path">{{ reportUrl }}</p>
         </div>
       </div>
 
@@ -52,7 +52,7 @@
         <el-button size="small" style="width:100%;margin-top:8px" @click="$router.push(`/task/${taskId}/anomalies`)">
           查看异常列表
         </el-button>
-        <el-button size="small" style="width:100%;margin-top:8px" @click="searchSimilar" :loading="similarLoading">
+        <el-button size="small" style="width:100%;margin-top:8px" @click="searchSimilar" :loading="reportStore.loading.similar">
           刷新相似案例
         </el-button>
       </div>
@@ -108,27 +108,14 @@
           </p>
         </div>
 
-        <div v-if="reportUrl" style="margin-top:20px">
+        <div v-if="generated" style="margin-top:20px">
           <el-result icon="success" title="报告生成成功" sub-title="报告已保存，可选择预览或下载">
             <template #extra>
-              <el-button v-if="pdfUrl" type="primary" @click="showPreview = !showPreview">
-                <el-icon><View /></el-icon> {{ showPreview ? '隐藏预览' : '在线预览 (PDF)' }}
-              </el-button>
               <el-button type="success" @click="downloadDoc">
                 <el-icon><Download /></el-icon> 下载 DOCX
               </el-button>
-              <el-button v-if="pdfUrl" type="warning" @click="downloadPdf">
-                <el-icon><Download /></el-icon> 下载 PDF
-              </el-button>
             </template>
           </el-result>
-          <div v-if="showPreview && pdfUrl" style="margin-top:16px">
-            <iframe :src="pdfUrl" style="width:100%;height:600px;border:1px solid #ebeef5;border-radius:4px" />
-          </div>
-          <div v-if="showPreview && !pdfUrl" style="margin-top:16px">
-            <el-alert title="PDF 预览不可用" type="info" show-icon :closable="false"
-              description="服务器未安装 LibreOffice，无法生成 PDF。请下载 DOCX 文件后使用 Word 打开查看。" />
-          </div>
         </div>
 
         <div v-if="error" style="margin-top:16px">
@@ -139,17 +126,17 @@
       <!-- 相似案例 -->
       <el-card header="相似历史案例 (Milvus 检索)">
         <template #extra>
-          <el-button size="small" @click="searchSimilar" :loading="similarLoading" text type="primary">
+          <el-button size="small" @click="searchSimilar" :loading="reportStore.loading.similar" text type="primary">
             <el-icon><Refresh /></el-icon> 刷新
           </el-button>
         </template>
 
-        <div v-if="similarLoading" style="text-align:center;padding:40px">
+        <div v-if="reportStore.loading.similar" style="text-align:center;padding:40px">
           <el-icon :size="28" class="is-loading"><Loading /></el-icon>
           <p style="margin-top:8px;color:#909399">正在 Milvus 向量检索...</p>
         </div>
 
-        <div v-else-if="similarTasks.length === 0">
+        <div v-else-if="similarTaskList.length === 0">
           <el-empty description="暂无相似历史案例" :image-size="80">
             <template #description>
               <span>Milvus 向量库中暂未检索到相似案例</span>
@@ -159,7 +146,7 @@
         </div>
 
         <div v-else class="similar-list">
-          <div v-for="(item, idx) in similarTasks" :key="idx" class="similar-card">
+          <div v-for="(item, idx) in similarTaskList" :key="idx" class="similar-card">
             <div class="similar-rank" :style="{background: simColor(item.similarity)}">#{{ idx + 1 }}</div>
             <div class="similar-body">
               <div class="similar-top">
@@ -189,35 +176,46 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
+import { useTaskStore } from '../stores/task'
+import { useReportStore } from '../stores/report'
+import { usePolling } from '../composables/usePolling'
+import { useStatus } from '../composables/useStatus'
+import { ElMessage } from 'element-plus'
 import {
   Document, Loading, Refresh, InfoFilled, FolderOpened,
-  Connection, DataAnalysis, WarningFilled, FolderChecked, View,
+  Connection, DataAnalysis, WarningFilled, FolderChecked, Download,
 } from '@element-plus/icons-vue'
-import api from '../api'
 
 const route = useRoute()
 const taskId = route.params.id
+const taskStore = useTaskStore()
+const reportStore = useReportStore()
+const { statusLabel } = useStatus()
+
+// State
 const generating = ref(false)
 const generated = ref(false)
-const reportUrl = ref('')
-const docUrl = ref('')
-const pdfUrl = ref('')
 const reportProgress = ref(0)
 const progressPhase = ref('')
-const elapsedSeconds = ref(0)
 const error = ref('')
-const similarTasks = ref([])
-const similarLoading = ref(false)
-const taskInfo = reactive({})
 const reportTemplate = ref('standard')
-const showPreview = ref(false)
-let progressTimer = null
-let elapsedTimer = null
-let pollCount = 0
-const MAX_POLLS = 300  // 10 minutes at 2s interval
 
+// Computed
+const reportUrl = computed(() => `/reports/${taskId}.docx`)
+
+// Normalize similar tasks from store response
+const similarTaskList = computed(() => {
+  const raw = reportStore.similarTasks
+  if (!raw) return []
+  if (Array.isArray(raw)) return raw
+  if (raw.similar_tasks) return raw.similar_tasks
+  if (raw.data?.similar_tasks) return raw.data?.similar_tasks
+  return []
+})
+
+// Helper functions for similarity display
 function simType(v) {
   if (v >= 0.8) return 'danger'
   if (v >= 0.6) return 'warning'
@@ -229,20 +227,58 @@ function simColor(v) {
   return '#67c23a'
 }
 
+// Task status polling - fetches task info, auto-stops when no longer processing
+const taskPolling = usePolling(
+  () => taskStore.pollTaskStatus(taskId),
+  2000
+)
+
+// Report generation polling
+const reportPolling = usePolling(
+  async () => {
+    const status = await reportStore.fetchReportStatus(taskId)
+    if (!status) return false
+
+    reportProgress.value = status.progress || 0
+    progressPhase.value = status.phase || ''
+
+    if (status.progress === -1) {
+      error.value = status.phase || '报告生成失败'
+      generating.value = false
+      return true
+    }
+
+    if (status.progress >= 100 || (!status.generating && status.has_report)) {
+      reportProgress.value = 100
+      progressPhase.value = '报告生成完成！'
+      generated.value = true
+      generating.value = false
+      return true
+    }
+
+    if (!status.generating && !status.has_report && reportPolling.elapsed.value > 8000) {
+      error.value = '报告生成失败，请查看服务器日志后重试'
+      generating.value = false
+      return true
+    }
+
+    return false
+  },
+  2000,
+  600000 // 10 min max
+)
+
+const elapsedSeconds = computed(() => Math.floor(reportPolling.elapsed.value / 1000))
+
 async function loadTaskInfo() {
-  try {
-    const res = await api.getTaskStatus(taskId)
-    Object.assign(taskInfo, res)
-  } catch {}
+  await taskStore.pollTaskStatus(taskId)
 }
 
 async function searchSimilar() {
-  similarLoading.value = true
   try {
-    const res = await api.searchSimilar(taskId)
-    similarTasks.value = res.similar_tasks || res.data?.similar_tasks || []
-  } finally {
-    similarLoading.value = false
+    await reportStore.searchSimilar(taskId)
+  } catch {
+    // error handled by store
   }
 }
 
@@ -250,62 +286,15 @@ async function generateReport() {
   generating.value = true
   error.value = ''
   reportProgress.value = 0
-  elapsedSeconds.value = 0
   progressPhase.value = '正在启动...'
 
   try {
-    const res = await api.generateReport(taskId)
-    if (res.status !== 'started') {
-      throw new Error('生成启动失败')
-    }
-    elapsedTimer = setInterval(() => { elapsedSeconds.value++ }, 1000)
-    pollCount = 0
-    progressTimer = setInterval(pollProgress, 2000)
+    await reportStore.generateReport(taskId)
+    reportPolling.start()
   } catch (e) {
-    error.value = e.response?.data?.messages || e.message || '报告生成失败'
+    error.value = reportStore.error.generate || e.message || '报告生成失败'
     generating.value = false
   }
-}
-
-async function pollProgress() {
-  pollCount++
-  if (pollCount > MAX_POLLS) {
-    clearTimers()
-    error.value = '报告生成超时，请检查服务器状态后重试'
-    generating.value = false
-    return
-  }
-  try {
-    const status = await api.getReportStatus(taskId)
-    reportProgress.value = status.progress || 0
-    progressPhase.value = status.phase || ''
-
-    if (status.progress === -1) {
-      clearTimers()
-      error.value = status.phase || '报告生成失败'
-      generating.value = false
-      return
-    }
-    if (status.progress >= 100) {
-      clearTimers()
-      reportProgress.value = 100
-      progressPhase.value = '报告生成完成！'
-      reportUrl.value = status.report_url || status.doc_url || ''
-      docUrl.value = status.doc_url || ''
-      pdfUrl.value = status.pdf_url || ''
-      generated.value = true
-      generating.value = false
-    }
-  } catch (e) {
-    clearTimers()
-    error.value = e.response?.data?.messages || e.message || '查询进度失败'
-    generating.value = false
-  }
-}
-
-function clearTimers() {
-  clearInterval(progressTimer)
-  clearInterval(elapsedTimer)
 }
 
 function triggerDownload(url, filename) {
@@ -318,19 +307,18 @@ function triggerDownload(url, filename) {
 }
 
 function downloadDoc() {
-  const url = docUrl.value || reportUrl.value
-  if (url) triggerDownload(url, `${taskId}.docx`)
-}
-function downloadPdf() {
-  if (pdfUrl.value) triggerDownload(pdfUrl.value, `${taskId}.pdf`)
+  triggerDownload(reportUrl.value, `${taskId}.docx`)
 }
 
 onMounted(() => {
+  taskPolling.start()
   loadTaskInfo()
   searchSimilar()
 })
+
 onUnmounted(() => {
-  clearTimers()
+  taskPolling.stop()
+  reportPolling.stop()
 })
 </script>
 
