@@ -63,7 +63,7 @@
       <el-page-header @back="$router.back()" content="智能报告生成" style="margin-bottom:16px" />
 
       <!-- 生成流程 -->
-      <el-card header="报告生成流程" style="margin-bottom:16px">
+      <el-card header="报告生成流程" class="section-gap">
         <el-steps :active="generated ? 4 : generating ? 3 : reportProgress > 0 ? 1 : 0" align-center>
           <el-step title="数据统计" description="提取水质指标统计特征">
             <template #icon><el-icon><DataAnalysis /></el-icon></template>
@@ -81,7 +81,7 @@
       </el-card>
 
       <!-- 生成区域 -->
-      <el-card header="生成分析报告" style="margin-bottom:16px">
+      <el-card header="生成分析报告" class="section-gap">
         <div style="text-align:center;padding:16px 0">
           <div style="margin-bottom:16px">
             <span style="margin-right:12px;font-size:14px;color:#606266">报告模板:</span>
@@ -323,12 +323,12 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.report-page { display: flex; gap: 16px; max-width: 1500px; margin: 0 auto; }
+.report-page { display: flex; gap: var(--section-gap); max-width: 1500px; margin: 0 auto; align-items: flex-start; }
 
 /* Left sidebar glass */
 .report-sidebar {
-  width: 260px; flex-shrink: 0;
-  display: flex; flex-direction: column; gap: 16px;
+  width: 260px; flex-shrink: 0; position: sticky; top: var(--section-gap);
+  display: flex; flex-direction: column; gap: var(--section-gap);
 }
 .sidebar-section {
   background: var(--glass-bg);

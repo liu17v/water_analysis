@@ -355,11 +355,14 @@ async def get_depth_profile_html(
         hovertemplate=f"{label}=%{{x:.2f}} {unit}<br>深度=%{{y}}m<extra></extra>",
     ))
     fig.update_layout(
-        title=title, xaxis_title=f"{label}" + (f" ({unit})" if unit else ""),
-        yaxis_title="深度 (m)", yaxis=dict(autorange="reversed"),
-        height=500, margin=dict(l=60, r=30, t=50, b=50), hovermode="x unified",
+        title=title, autosize=True,
+        xaxis_title=f"{label}" + (f" ({unit})" if unit else ""),
+        yaxis_title="深度 (m)", yaxis=dict(autorange="reversed", automargin=True),
+        xaxis=dict(automargin=True),
+        margin=dict(l=70, r=60, t=50, b=80), hovermode="x unified",
+        legend=dict(orientation="h", yanchor="top", y=-0.12, xanchor="center", x=0.5),
     )
-    return HTMLResponse(content=fig.to_html(full_html=True, include_plotlyjs="cdn"))
+    return HTMLResponse(content=fig.to_html(full_html=True, include_plotlyjs="cdn", config={'responsive': True}))
 
 
 @task_router.get("/api/task/{task_id}/raw_data", summary="获取原始数据预览")

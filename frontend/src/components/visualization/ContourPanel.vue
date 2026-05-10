@@ -8,9 +8,9 @@
       <el-button size="small" @click="refresh"><el-icon><Refresh /></el-icon></el-button>
       <el-button size="small" @click="toggleFullscreen"><el-icon><FullScreen /></el-icon></el-button>
     </div>
-    <div ref="containerRef" class="iframe-container" :class="{ fullscreen: isFullscreen }">
-      <LoadingOverlay v-if="loading" :visible="true" text="加载等值线..." />
-      <iframe v-show="!loading" :src="iframeUrl" frameborder="0" @load="loading = false" />
+    <div ref="containerRef" class="viz-frame" :class="{ fullscreen: isFullscreen }">
+      <iframe :key="iframeUrl" :src="iframeUrl" frameborder="0" @load="onIframeLoad" />
+      <LoadingOverlay :visible="loading" text="加载等值线..." />
     </div>
   </div>
 </template>
@@ -36,6 +36,12 @@ const iframeUrl = computed(() => {
   const depth = selectedDepth.value || ''
   return `/api/task/${props.taskId}/contour_html?indicator=${indicator.value}&depth=${depth}`
 })
+
+watch([indicator, selectedDepth], () => { loading.value = true })
+
+function onIframeLoad() {
+  loading.value = false
+}
 
 function refresh() {
   loading.value = true
@@ -64,7 +70,8 @@ watch(isFullscreen, (val) => {
 <style scoped>
 .contour-panel { display: flex; flex-direction: column; gap: 8px; }
 .panel-header { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.iframe-container { position: relative; width: 100%; height: 500px; border: 1px solid #ebeef5; border-radius: 4px; overflow: hidden; }
-.iframe-container.fullscreen { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 9999; background: #fff; }
-.iframe-container iframe { width: 100%; height: 100%; }
+.viz-frame { position: relative; width: 100%; height: calc(100vh - 320px); min-height: 400px; max-height: 800px; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04); background: var(--glass-bg); }
+.viz-frame.fullscreen { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 9999; background: #fff; }
+.viz-frame iframe { width: 100%; height: 100%; }
+.viz-frame :deep(.loading-overlay) { position: absolute; inset: 0; z-index: 2; }
 </style>

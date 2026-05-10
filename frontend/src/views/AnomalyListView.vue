@@ -3,50 +3,51 @@
     <el-page-header @back="$router.back()" :content="isGlobalMode ? '异常点管理' : '任务异常点'" style="margin-bottom:16px" />
 
     <!-- Filter bar -->
-    <el-card class="filter-bar">
-      <el-row :gutter="12" align="middle">
-        <el-col :span="4">
+    <el-card class="filter-bar-card">
+      <!-- Row 1: 主搜索条件 -->
+      <div class="filter-row">
+        <div class="filter-group">
           <el-input v-model="filterTaskId" :placeholder="isGlobalMode ? '搜索任务ID' : '已筛选当前任务'" clearable
-            :disabled="!isGlobalMode" @clear="onFilter" @keyup.enter="onFilter">
+            :disabled="!isGlobalMode" @clear="onFilter" @keyup.enter="onFilter" style="width:200px">
             <template #prefix><el-icon><Search /></el-icon></template>
           </el-input>
-        </el-col>
-        <el-col :span="3">
-          <IndicatorSelect v-model="filterIndicator" placeholder="指标筛选" size="default" />
-        </el-col>
-        <el-col :span="3">
-          <el-select v-model="filterMethod" placeholder="检测方法" clearable @change="onFilter">
+          <IndicatorSelect v-model="filterIndicator" placeholder="指标筛选" />
+          <el-select v-model="filterMethod" placeholder="检测方法" clearable @change="onFilter" style="width:130px">
             <el-option label="阈值检测" value="threshold" />
             <el-option label="孤立森林" value="isolation_forest" />
           </el-select>
-        </el-col>
-        <el-col :span="3">
-          <el-input v-model="filterDepthMin" placeholder="深度范围" size="small" style="width:48%" />
-          <span style="margin:0 2px">-</span>
-          <el-input v-model="filterDepthMax" placeholder="" size="small" style="width:44%" @keyup.enter="onFilter" />
-        </el-col>
-        <el-col :span="3">
-          <el-input v-model="filterValueMin" placeholder="数值范围" size="small" style="width:48%" />
-          <span style="margin:0 2px">-</span>
-          <el-input v-model="filterValueMax" placeholder="" size="small" style="width:44%" @keyup.enter="onFilter" />
-        </el-col>
-        <el-col :span="3">
-          <el-button type="primary" size="small" @click="onFilter"><el-icon><Search /></el-icon> 查询</el-button>
-          <el-button size="small" @click="resetFilters"><el-icon><Refresh /></el-icon></el-button>
-        </el-col>
-        <el-col :span="5" style="text-align:right">
+          <el-button type="primary" @click="onFilter"><el-icon><Search /></el-icon> 查询</el-button>
+          <el-button @click="resetFilters"><el-icon><Refresh /></el-icon></el-button>
+        </div>
+      </div>
+      <!-- Row 2: 高级筛选 + 操作 -->
+      <div class="filter-row filter-row-bottom">
+        <div class="filter-group">
+          <span class="filter-label">深度</span>
+          <el-input v-model="filterDepthMin" placeholder="从" clearable style="width:75px" @keyup.enter="onFilter" />
+          <span class="range-sep">—</span>
+          <el-input v-model="filterDepthMax" placeholder="到" clearable style="width:75px" @keyup.enter="onFilter" />
+          <span class="filter-unit">m</span>
+        </div>
+        <div class="filter-group">
+          <span class="filter-label">数值</span>
+          <el-input v-model="filterValueMin" placeholder="从" clearable style="width:75px" @keyup.enter="onFilter" />
+          <span class="range-sep">—</span>
+          <el-input v-model="filterValueMax" placeholder="到" clearable style="width:75px" @keyup.enter="onFilter" />
+        </div>
+        <div class="filter-actions">
           <el-button size="small" @click="exportCSV"><el-icon><Download /></el-icon> CSV</el-button>
           <el-button size="small" type="success" @click="exportXLSX"><el-icon><Download /></el-icon> XLSX</el-button>
           <el-button size="small" type="warning" @click="toggleMapView">
-            <el-icon><MapLocation /></el-icon> {{ showMap ? '隐藏地图' : '异常点地图' }}
+            <el-icon><MapLocation /></el-icon> {{ showMap ? '隐藏' : '地图' }}
           </el-button>
-          <el-tag type="danger" size="default" style="margin-left:8px">{{ total }} 条</el-tag>
-        </el-col>
-      </el-row>
+          <el-tag type="danger" size="default">{{ total }} 条</el-tag>
+        </div>
+      </div>
     </el-card>
 
     <!-- Map -->
-    <el-card v-if="showMap" style="margin-top:12px">
+    <el-card v-if="showMap" class="section-gap">
       <template #header>
         <div style="display:flex;justify-content:space-between;align-items:center">
           <span>异常点地图</span>
@@ -56,7 +57,7 @@
     </el-card>
 
     <!-- Table -->
-    <el-card style="margin-top:12px">
+    <el-card class="section-gap">
       <template v-if="rows.length">
         <el-table :data="rows" stripe v-loading="loading" border size="small" max-height="600"
           @row-click="openDrawer" highlight-current-row>
@@ -271,9 +272,72 @@ onMounted(() => {
 
 <style scoped>
 .anomaly-list-view { max-width: 1500px; margin: 0 auto; }
-.filter-bar { margin-bottom: 0; }
-.filter-bar :deep(.el-card__body) { padding: 10px 16px; }
-.pagination-row { display: flex; justify-content: space-between; align-items: center; margin-top: 16px; }
-.total-text { font-size: 13px; color: var(--text-secondary); }
 .drawer-actions { display: flex; gap: 8px; }
+
+/* ── 筛选栏布局 ── */
+.filter-row {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+.filter-row-bottom {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(0, 0, 0, 0.04);
+}
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  flex-wrap: wrap;
+}
+.filter-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.filter-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.filter-unit {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-left: 2px;
+}
+.range-sep {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+/* ── 响应式 ── */
+@media (max-width: 1100px) {
+  .filter-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .filter-row-bottom {
+    margin-top: 8px;
+    padding-top: 8px;
+  }
+  .filter-group {
+    flex-wrap: wrap;
+  }
+  .filter-actions {
+    margin-left: 0;
+  }
+}
+@media (max-width: 768px) {
+  .filter-actions {
+    flex-wrap: wrap;
+  }
+  .anomaly-list-view :deep(.el-table .el-table__cell) {
+    padding: 8px 4px;
+  }
+}
 </style>

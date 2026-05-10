@@ -2,62 +2,82 @@
   <div class="task-detail">
     <el-page-header @back="$router.back()" content="任务详情" style="margin-bottom:16px" />
 
-    <!-- Task info header -->
-    <el-card v-if="task" class="info-card">
-      <el-row :gutter="16" align="middle">
+    <!-- 任务信息毛玻璃卡片 -->
+    <div v-if="task" class="glass-info-card">
+      <el-row :gutter="24" align="middle">
         <el-col :span="16">
-          <el-descriptions :column="2" border size="small">
-            <el-descriptions-item label="任务ID" :span="2">{{ task.task_id }}</el-descriptions-item>
-            <el-descriptions-item label="水库名称">
-              <template v-if="editingReservoir">
-                <el-input v-model="editReservoirName" size="small" style="width:160px"
-                  @keyup.enter="saveReservoirName" @keyup.escape="editingReservoir = false" />
-                <el-button size="small" type="primary" link @click="saveReservoirName">确定</el-button>
-                <el-button size="small" link @click="editingReservoir = false">取消</el-button>
-              </template>
-              <template v-else>
-                {{ task.reservoir_name || '未知' }}
-                <el-button size="small" link type="primary" @click="editingReservoir = true; editReservoirName = task.reservoir_name || ''">
-                  <el-icon><Edit /></el-icon>
-                </el-button>
-              </template>
-            </el-descriptions-item>
-            <el-descriptions-item label="原始文件">{{ task.original_filename || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="状态">
-              <el-tag :type="statusType(task.status)" size="small">{{ statusLabel(task.status) }}</el-tag>
-            </el-descriptions-item>
-            <el-descriptions-item label="采样点 / 异常点">{{ task.total_points }} / {{ task.anomaly_count }}</el-descriptions-item>
-          </el-descriptions>
+          <div class="info-grid">
+            <div class="info-row">
+              <span class="info-label">任务ID</span>
+              <span class="info-value mono">{{ task.task_id }}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">水库名称</span>
+              <span class="info-value">
+                <template v-if="editingReservoir">
+                  <el-input v-model="editReservoirName" size="small" style="width:160px"
+                    @keyup.enter="saveReservoirName" @keyup.escape="editingReservoir = false" />
+                  <el-button size="small" type="primary" link @click="saveReservoirName">确定</el-button>
+                  <el-button size="small" link @click="editingReservoir = false">取消</el-button>
+                </template>
+                <template v-else>
+                  {{ task.reservoir_name || '未知' }}
+                  <el-button size="small" link type="primary" @click="editingReservoir = true; editReservoirName = task.reservoir_name || ''">
+                    <el-icon><Edit /></el-icon>
+                  </el-button>
+                </template>
+              </span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">原始文件</span>
+              <span class="info-value">{{ task.original_filename || '-' }}</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">状态</span>
+              <span class="info-value">
+                <el-tag :type="statusType(task.status)" size="small" effect="dark">
+                  {{ statusLabel(task.status) }}
+                </el-tag>
+              </span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">采样点 / 异常点</span>
+              <span class="info-value">
+                {{ task.total_points }} 点 /
+                <span :class="task.anomaly_count > 0 ? 'text-danger' : ''">{{ task.anomaly_count }} 异常</span>
+              </span>
+            </div>
+          </div>
         </el-col>
-        <el-col :span="8" style="text-align:right">
-          <el-button-group v-if="task.status === 'success'">
-            <el-button size="small" type="success" @click="$router.push(`/task/${task.task_id}/report`)">
-              <el-icon><Document /></el-icon> 生成报告
-            </el-button>
-            <el-button size="small" type="info" @click="$router.push(`/task/${task.task_id}/anomalies`)">
-              <el-icon><Download /></el-icon> 导出
-            </el-button>
-          </el-button-group>
+        <el-col :span="8" class="info-actions-col">
+          <el-button v-if="task.status === 'success'" type="primary" @click="$router.push(`/task/${task.task_id}/report`)">
+            <el-icon><Document /></el-icon> 生成报告
+          </el-button>
+          <el-button v-if="task.status === 'success'" @click="$router.push(`/task/${task.task_id}/anomalies`)">
+            <el-icon><Download /></el-icon> 导出
+          </el-button>
         </el-col>
       </el-row>
-      <el-progress v-if="task.status === 'processing'" :percentage="progress" :stroke-width="8" style="margin-top:16px" />
-    </el-card>
+      <el-progress v-if="task.status === 'processing'" :percentage="progress" :stroke-width="10" class="info-progress" />
+    </div>
 
     <!-- Processing state -->
-    <div v-if="task?.status === 'processing'" style="text-align:center;margin:60px 0">
-      <el-icon :size="48" class="is-loading"><Loading /></el-icon>
-      <p style="margin-top:16px;color:#909399">任务处理中，请稍候... ({{ progress }}%)</p>
+    <div v-if="task?.status === 'processing'" class="processing-state">
+      <div class="processing-icon">
+        <el-icon :size="48" class="is-loading"><Loading /></el-icon>
+      </div>
+      <p class="processing-text">任务处理中，请稍候...</p>
+      <p class="processing-sub">{{ progress }}%</p>
     </div>
 
     <!-- Tabs (only when success) -->
     <template v-if="task?.status === 'success'">
-      <el-tabs v-model="activeTab" type="border-card" style="margin-top:16px" @tab-change="onTabChange">
+      <el-tabs v-model="activeTab" class="glass-tabs" @tab-change="onTabChange">
 
-        <!-- 统计数据 -->
         <el-tab-pane label="统计数据" name="stats">
           <div v-loading="statsLoading" class="tab-content">
-            <el-row :gutter="16">
-              <el-col :span="12" v-for="item in indicatorStats" :key="item.indicator" style="margin-bottom:12px">
+            <el-row :gutter="20" class="card-grid-row">
+              <el-col :span="12" v-for="item in indicatorStats" :key="item.indicator" class="indicator-col">
                 <el-card shadow="hover" class="indicator-card">
                   <template #header>
                     <div class="indicator-header">
@@ -70,7 +90,7 @@
                       </div>
                     </div>
                   </template>
-                  <el-row :gutter="12">
+                  <el-row :gutter="16">
                     <el-col :span="6"><div class="stat-item"><span class="stat-lbl">均值</span><span class="stat-num">{{ item.mean ?? '-' }}</span></div></el-col>
                     <el-col :span="6"><div class="stat-item"><span class="stat-lbl">标准差</span><span class="stat-num">{{ item.std ?? '-' }}</span></div></el-col>
                     <el-col :span="6"><div class="stat-item"><span class="stat-lbl">最小值</span><span class="stat-num">{{ item.min ?? '-' }}</span></div></el-col>
@@ -78,14 +98,13 @@
                   </el-row>
                   <div class="indicator-footer">
                     <span>有效数据 {{ item.count }} 条</span>
-                    <span> | 异常率 {{ item.anomaly_rate }}%</span>
-                    <span v-if="item.unit"> | 单位: {{ item.unit }}</span>
+                    <span v-if="item.anomaly_rate != null"> · 异常率 <span :class="item.anomaly_rate > 0 ? 'text-danger' : ''">{{ item.anomaly_rate }}%</span></span>
+                    <span v-if="item.unit"> · 单位: {{ item.unit }}</span>
                   </div>
                 </el-card>
               </el-col>
             </el-row>
 
-            <!-- Distribution histogram dialog -->
             <el-dialog v-model="histoVisible" :title="histoTitle" width="700px" destroy-on-close>
               <v-chart v-if="histoOption" :option="histoOption" autoresize style="height:360px" />
               <div v-if="histoStats" class="histo-summary">
@@ -99,27 +118,22 @@
           </div>
         </el-tab-pane>
 
-        <!-- 采样点 -->
-        <el-tab-pane label="采样点" name="map">
+        <el-tab-pane label="采样点" name="map" lazy>
           <SampleMap :data-points="dataPoints" :depths="depths" />
         </el-tab-pane>
 
-        <!-- 2D 等值线 -->
-        <el-tab-pane label="2D 等值线" name="contour">
+        <el-tab-pane label="2D 等值线" name="contour" lazy>
           <ContourPanel :task-id="taskId" :depths="depths" />
         </el-tab-pane>
 
-        <!-- 3D 体渲染 -->
-        <el-tab-pane label="3D 体渲染" name="volume">
+        <el-tab-pane label="3D 体渲染" name="volume" lazy>
           <PointCloudFrame :task-id="taskId" />
         </el-tab-pane>
 
-        <!-- 深度剖面 -->
-        <el-tab-pane label="深度剖面" name="depth">
+        <el-tab-pane label="深度剖面" name="depth" lazy>
           <DepthProfilePanel :task-id="taskId" />
         </el-tab-pane>
 
-        <!-- 原始数据 -->
         <el-tab-pane label="原始数据" name="raw">
           <div class="tab-content">
             <div class="raw-toolbar">
@@ -137,7 +151,7 @@
                 </el-checkbox-group>
               </el-popover>
             </div>
-            <el-table :data="filteredRawRows" stripe v-loading="rawLoading" max-height="500" border size="small">
+            <el-table :data="filteredRawRows" stripe v-loading="rawLoading" max-height="500" size="small">
               <el-table-column v-for="(label, idx) in rawFieldLabels" :key="rawFields[idx]"
                 v-show="!rawHiddenCols.includes(rawFields[idx])"
                 :prop="rawFields[idx]" :label="label" min-width="100" show-overflow-tooltip>
@@ -248,7 +262,6 @@ const indicatorStats = ref([])
 const statsLoading = computed(() => taskStore.loading.stats)
 
 async function loadStatistics() {
-  if (indicatorStats.value.length) return
   await taskStore.fetchStatistics(taskId.value)
   const stats = taskStore.statistics
   indicatorStats.value = stats?.indicators ? Object.values(stats.indicators) : []
@@ -289,7 +302,6 @@ async function showHistogram(item) {
         itemStyle: { color, borderRadius: [4, 4, 0, 0] },
       }],
     }
-    // Compute percentiles from raw bins
     const flat = []
     res.bins.forEach((b, i) => {
       for (let j = 0; j < (res.counts[i] || 0); j++) flat.push(Number(b))
@@ -352,6 +364,7 @@ onMounted(async () => {
   if (task.value?.status === 'processing') {
     startPolling()
   } else if (task.value?.status === 'success') {
+    loadStatistics() // 加载统计数据
     await Promise.all([
       loadDepths(),
       loadDataPoints(),
@@ -366,22 +379,173 @@ onUnmounted(() => {
 
 <style scoped>
 .task-detail { max-width: 1400px; margin: 0 auto; }
-.info-card { margin-bottom: 16px; }
-.tab-content { padding: 8px 0; }
 
-/* Indicator cards */
+/* ── 玻璃信息卡片 ── */
+.glass-info-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur-sm));
+  -webkit-backdrop-filter: blur(var(--glass-blur-sm));
+  border: var(--glass-border-light);
+  border-radius: var(--glass-radius-sm);
+  padding: 20px 24px;
+  box-shadow: var(--glass-shadow);
+  margin-bottom: var(--section-gap);
+  animation: glassFadeInUp 0.3s ease;
+}
+
+.info-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.info-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.info-label {
+  color: var(--text-secondary);
+  min-width: 100px;
+  flex-shrink: 0;
+  font-weight: 500;
+}
+
+.info-value {
+  color: var(--text-primary);
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.info-value.mono {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 12px;
+  word-break: break-all;
+}
+
+.text-danger { color: #f56c6c; font-weight: 600; }
+
+.info-actions-col {
+  text-align: right;
+  white-space: nowrap;
+}
+.info-actions-col :deep(.el-button) {
+  white-space: nowrap;
+}
+
+.info-progress {
+  margin-top: 16px;
+}
+
+/* ── 处理中状态 ── */
+.processing-state {
+  text-align: center;
+  margin: 80px 0;
+  animation: glassFadeInUp 0.4s ease;
+}
+
+.processing-icon {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 20px;
+  background: rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(12px);
+  border-radius: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary);
+}
+
+.processing-text {
+  font-size: 16px;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.processing-sub {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+/* ── 毛玻璃标签页 ── */
+.glass-tabs {
+  margin-top: 16px;
+}
+
+.glass-tabs :deep(.el-tabs__header) {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur-sm));
+  -webkit-backdrop-filter: blur(var(--glass-blur-sm));
+  border: var(--glass-border-light);
+  border-radius: var(--glass-radius-sm) var(--glass-radius-sm) 0 0;
+  padding: 8px 16px 0;
+  margin-bottom: 0;
+  box-shadow: var(--glass-shadow);
+}
+
+.glass-tabs :deep(.el-tabs__content) {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur-sm));
+  -webkit-backdrop-filter: blur(var(--glass-blur-sm));
+  border: var(--glass-border-light);
+  border-top: none;
+  border-radius: 0 0 var(--glass-radius-sm) var(--glass-radius-sm);
+  padding: 20px;
+  box-shadow: var(--glass-shadow);
+}
+
+.glass-tabs :deep(.el-tabs__item) {
+  font-size: 13px;
+  padding: 0 16px;
+  height: 40px;
+  line-height: 40px;
+  border-radius: 12px 12px 0 0;
+  transition: var(--transition-fast);
+}
+
+.glass-tabs :deep(.el-tabs__item.is-active) {
+  color: var(--primary);
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.glass-tabs :deep(.el-tabs__active-bar) {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--primary);
+}
+
+.glass-tabs :deep(.el-tabs__nav-wrap::after) {
+  display: none;
+}
+
+/* ── 统计数据 ── */
+.tab-content { padding: 4px 0; }
+
+.indicator-col { margin-bottom: 0; }
 .indicator-card { margin-bottom: 4px; }
-.indicator-header { display: flex; justify-content: space-between; align-items: center; }
-.indicator-name { font-weight: 600; font-size: 15px; }
-.stat-item { text-align: center; padding: 4px 0; }
-.stat-lbl { display: block; font-size: 12px; color: var(--text-secondary); }
-.stat-num { display: block; font-size: 16px; font-weight: 600; color: var(--text-primary); margin-top: 2px; }
-.indicator-footer { margin-top: 10px; font-size: 12px; color: var(--text-secondary); }
+.indicator-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+.indicator-name { font-weight: 600; font-size: 15px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stat-item { text-align: center; padding: 8px 4px; min-width: 0; }
+.stat-lbl { display: block; font-size: 11px; color: var(--text-secondary); }
+.stat-num { display: block; font-size: 18px; font-weight: 700; color: var(--text-primary); margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.indicator-footer { margin-top: 8px; font-size: 12px; color: var(--text-secondary); padding-top: 8px; border-top: 1px solid rgba(0,0,0,0.04); }
 
-/* Histogram */
 .histo-summary { display: flex; gap: 8px; margin-top: 12px; justify-content: center; flex-wrap: wrap; }
 
-/* Raw data */
+/* ── 原始数据 ── */
 .raw-toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+.raw-toolbar .el-checkbox { white-space: nowrap; }
 .suspicious-cell { color: #f56c6c; font-weight: 600; }
+
+@media (max-width: 900px) {
+  .indicator-col { width: 100%; }
+  .info-actions-col { width: 100%; text-align: left; margin-top: 8px; }
+  .glass-info-card .el-row { flex-direction: column; }
+}
 </style>

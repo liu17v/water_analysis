@@ -1,0 +1,419 @@
+/* ============================================================
+   鸿蒙 6.0 沉浸光感 — 全局毛玻璃设计语言
+   ============================================================
+   核心特征:
+   · 毛玻璃: backdrop-filter: blur(12px~20px) + 半透明背景
+   · 光晕高光: box-shadow / radial-gradient 柔和光效
+   · 圆润: 主容器 24px~32px，内部小元素 12px~16px
+   · 景深: 背景模糊 + 半透明叠加，避免生硬边框
+   · 动效: 0.2s~0.3s 过渡，卡片淡入上移
+   ============================================================ */
+
+/* ── CSS 变量 ── */
+:root {
+  /* 毛玻璃面板 */
+  --glass-bg: rgba(255, 255, 255, 0.68);
+  --glass-bg-strong: rgba(255, 255, 255, 0.82);
+  --glass-blur: 18px;
+  --glass-blur-sm: 12px;
+  --glass-blur-lg: 24px;
+  --glass-radius: 28px;
+  --glass-radius-sm: 16px;
+  --glass-radius-xs: 12px;
+  --glass-border: 1px solid rgba(255, 255, 255, 0.45);
+  --glass-border-light: 1px solid rgba(255, 255, 255, 0.25);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.06);
+  --glass-shadow-hover: 0 12px 40px rgba(0, 0, 0, 0.10);
+
+  /* 品牌色 */
+  --primary: #409eff;
+  --primary-light: rgba(64, 158, 255, 0.12);
+  --primary-glow: rgba(64, 158, 255, 0.25);
+
+  /* 文字 */
+  --text-primary: #1d2129;
+  --text-secondary: #86909c;
+  --text-muted: #c9cdd4;
+
+  /* 背景 */
+  --bg-app: #f0f4f8;
+  --bg-gradient: linear-gradient(135deg, #e8edf5 0%, #f0f4f8 50%, #e8f0f5 100%);
+
+  /* 动画 */
+  --transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* 布局间距系统 — 卡片之间保持呼吸感 */
+  --section-gap: 20px;
+  --section-gap-lg: 28px;
+  --card-padding: 20px;
+  --card-padding-sm: 16px;
+  --filter-bar-padding: 10px 16px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --glass-bg: rgba(30, 35, 50, 0.72);
+    --glass-bg-strong: rgba(30, 35, 50, 0.85);
+    --glass-border: 1px solid rgba(255, 255, 255, 0.08);
+    --glass-border-light: 1px solid rgba(255, 255, 255, 0.04);
+    --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+    --glass-shadow-hover: 0 12px 40px rgba(0, 0, 0, 0.35);
+    --text-primary: #e5e6eb;
+    --text-secondary: #86909c;
+    --text-muted: #4e5969;
+    --bg-app: #10141a;
+    --bg-gradient: linear-gradient(135deg, #10141a 0%, #1a1f2a 50%, #10141a 100%);
+    --primary-light: rgba(64, 158, 255, 0.15);
+  }
+}
+
+/* ── 全局基础 ── */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', sans-serif;
+  background: var(--bg-gradient);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── 毛玻璃面板 ── */
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: var(--glass-border);
+  border-radius: var(--glass-radius);
+  box-shadow: var(--glass-shadow);
+  transition: var(--transition-normal);
+}
+
+.glass-panel:hover {
+  box-shadow: var(--glass-shadow-hover);
+}
+
+.glass-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur-sm));
+  -webkit-backdrop-filter: blur(var(--glass-blur-sm));
+  border: var(--glass-border-light);
+  border-radius: var(--glass-radius-sm);
+  box-shadow: var(--glass-shadow);
+  transition: var(--transition-normal);
+}
+
+.glass-card:hover {
+  box-shadow: var(--glass-shadow-hover);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+/* ── 淡入上行动画 ── */
+@keyframes glassFadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.glass-fade-in {
+  animation: glassFadeInUp 0.4s ease both;
+}
+
+.glass-fade-in:nth-child(2) { animation-delay: 0.05s; }
+.glass-fade-in:nth-child(3) { animation-delay: 0.10s; }
+.glass-fade-in:nth-child(4) { animation-delay: 0.15s; }
+.glass-fade-in:nth-child(5) { animation-delay: 0.20s; }
+
+/* ── 呼吸光效（pulse） ── */
+@keyframes glassPulse {
+  0%, 100% { box-shadow: 0 0 0 0 var(--primary-glow); }
+  50% { box-shadow: 0 0 0 8px transparent; }
+}
+
+/* ── Element Plus 全局覆写 ── */
+
+/* el-card → 毛玻璃卡片 */
+.el-card {
+  background: var(--glass-bg) !important;
+  backdrop-filter: blur(var(--glass-blur-sm)) !important;
+  -webkit-backdrop-filter: blur(var(--glass-blur-sm)) !important;
+  border: var(--glass-border-light) !important;
+  border-radius: var(--glass-radius-sm) !important;
+  box-shadow: var(--glass-shadow) !important;
+  transition: var(--transition-normal) !important;
+}
+
+.el-card:hover {
+  box-shadow: var(--glass-shadow-hover) !important;
+  border-color: rgba(255, 255, 255, 0.5) !important;
+}
+
+.el-card__body {
+  padding: 20px;
+}
+
+/* el-table → 透明化 */
+.el-table {
+  background: transparent !important;
+  border: var(--glass-border-light) !important;
+  border-radius: var(--glass-radius-sm) !important;
+  overflow: hidden;
+}
+
+.el-table::before {
+  display: none !important;
+}
+
+.el-table th.el-table__cell {
+  background: rgba(255, 255, 255, 0.5) !important;
+  color: var(--text-secondary) !important;
+  font-weight: 600 !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04) !important;
+}
+
+.el-table .el-table__cell {
+  background: transparent !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.03) !important;
+}
+
+.el-table--striped .el-table__body tr.el-table__row--striped td.el-table__cell {
+  background: rgba(255, 255, 255, 0.3) !important;
+}
+
+.el-table__body tr:hover > td {
+  background: var(--primary-light) !important;
+}
+
+/* el-dialog → 毛玻璃弹窗 */
+.el-dialog {
+  background: var(--glass-bg-strong) !important;
+  backdrop-filter: blur(var(--glass-blur-lg)) !important;
+  -webkit-backdrop-filter: blur(var(--glass-blur-lg)) !important;
+  border: var(--glass-border) !important;
+  border-radius: var(--glass-radius) !important;
+  box-shadow: var(--glass-shadow-hover) !important;
+}
+
+.el-dialog__header {
+  padding: 24px 24px 16px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.el-dialog__body {
+  padding: 20px 24px;
+}
+
+.el-dialog__footer {
+  padding: 16px 24px 24px;
+  border-top: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+/* el-input → 毛玻璃输入框 */
+.el-input__wrapper {
+  background: rgba(255, 255, 255, 0.72) !important;
+  backdrop-filter: blur(8px) !important;
+  border-radius: 24px !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  transition: var(--transition-fast) !important;
+}
+
+.el-input__wrapper:hover {
+  box-shadow: 0 4px 16px rgba(64, 158, 255, 0.12) !important;
+  border-color: rgba(64, 158, 255, 0.3) !important;
+}
+
+.el-input__wrapper.is-focus {
+  box-shadow: 0 4px 20px rgba(64, 158, 255, 0.18) !important;
+  border-color: var(--primary) !important;
+}
+
+.el-input__inner {
+  color: var(--text-primary) !important;
+  font-size: 14px !important;
+}
+
+/* el-button → 圆润 */
+.el-button {
+  border-radius: 20px !important;
+  transition: var(--transition-fast) !important;
+}
+
+.el-button:hover {
+  transform: scale(1.02);
+}
+
+.el-button--primary {
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.25) !important;
+}
+
+.el-button--primary:hover {
+  box-shadow: 0 6px 20px rgba(64, 158, 255, 0.35) !important;
+}
+
+/* el-tag → 圆润 */
+.el-tag {
+  border-radius: 12px !important;
+  padding: 0 12px !important;
+}
+
+/* el-pagination */
+.el-pagination {
+  --el-pagination-bg-color: transparent !important;
+  --el-pagination-button-bg-color: transparent !important;
+}
+
+.el-pagination button,
+.el-pager li {
+  border-radius: 12px !important;
+  background: rgba(255, 255, 255, 0.4) !important;
+  backdrop-filter: blur(4px) !important;
+  margin: 0 2px !important;
+  transition: var(--transition-fast) !important;
+}
+
+.el-pager li.is-active {
+  background: var(--primary) !important;
+  color: #fff !important;
+}
+
+/* el-select */
+.el-select__wrapper {
+  background: rgba(255, 255, 255, 0.72) !important;
+  backdrop-filter: blur(8px) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  transition: var(--transition-fast) !important;
+}
+
+.el-select__wrapper:hover {
+  box-shadow: 0 4px 16px rgba(64, 158, 255, 0.12) !important;
+}
+
+/* el-dropdown-menu */
+.el-dropdown-menu {
+  background: var(--glass-bg-strong) !important;
+  backdrop-filter: blur(var(--glass-blur)) !important;
+  border: var(--glass-border) !important;
+  border-radius: var(--glass-radius-sm) !important;
+  box-shadow: var(--glass-shadow-hover) !important;
+}
+
+/* el-tabs */
+.el-tabs__header {
+  margin-bottom: 16px !important;
+}
+
+.el-tabs__item {
+  border-radius: 16px 16px 0 0 !important;
+  transition: var(--transition-fast) !important;
+  font-weight: 500 !important;
+}
+
+.el-tabs__item.is-active {
+  color: var(--primary) !important;
+}
+
+.el-tabs__active-bar {
+  background: var(--primary) !important;
+  height: 3px !important;
+  border-radius: 2px !important;
+}
+
+/* el-progress */
+.el-progress-bar__outer {
+  border-radius: 12px !important;
+  background: rgba(0, 0, 0, 0.04) !important;
+}
+
+.el-progress-bar__inner {
+  border-radius: 12px !important;
+  transition: width 0.6s ease !important;
+}
+
+/* el-alert */
+.el-alert {
+  border-radius: var(--glass-radius-xs) !important;
+}
+
+/* el-menu 全局覆写 */
+.el-menu {
+  border: none !important;
+}
+
+.el-menu-item {
+  transition: var(--transition-fast) !important;
+}
+
+/* ── 布局间距工具类 ── */
+.section-gap { margin-bottom: var(--section-gap); }
+.section-gap-lg { margin-bottom: var(--section-gap-lg); }
+.section-gap-sm { margin-bottom: 12px; }
+
+.section-gap:last-child,
+.section-gap-lg:last-child,
+.section-gap-sm:last-child { margin-bottom: 0; }
+
+/* 卡片网格间距 */
+.card-grid-row {
+  margin-bottom: var(--section-gap);
+}
+.card-grid-row:last-child {
+  margin-bottom: 0;
+}
+
+/* 内联卡片间距 — 两卡片并排时使用 */
+.card-inline-gap {
+  padding: 0 8px;
+}
+
+/* 标准过滤栏 — 与下方卡片保持间距 */
+.filter-bar-card {
+  margin-bottom: var(--section-gap);
+}
+.filter-bar-card :deep(.el-card__body) {
+  padding: var(--filter-bar-padding) !important;
+}
+
+/* 标准分页行 */
+.pagination-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: var(--section-gap);
+}
+.pagination-row .total-text {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/* ── 滚动条 ── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.12);
+  border-radius: 3px;
+  transition: var(--transition-fast);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.2);
+}

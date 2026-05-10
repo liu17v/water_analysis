@@ -3,7 +3,7 @@
     <el-page-header @back="$router.push('/')" content="用户管理" style="margin-bottom:16px" />
 
     <!-- Toolbar -->
-    <el-card style="margin-bottom:12px">
+    <el-card class="section-gap">
       <el-row :gutter="12" align="middle">
         <el-col :span="6">
           <el-input v-model="search" placeholder="搜索用户名" clearable @clear="onSearch" @keyup.enter="onSearch">

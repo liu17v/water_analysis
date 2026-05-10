@@ -22,7 +22,7 @@ export function roadTileUrl() {
  * 高德卫星图瓦片 URL（Leaflet 用）
  */
 export function satelliteTileUrl() {
-  return `https://webst0{s}.is.autonavi.com/appmaptile?style=6&key=${KEY}&x={x}&y={y}&z={z}`
+  return `https://webst0{s}.is.autonavi.com/appmaptile?style=6&scale=1&key=${KEY}&x={x}&y={y}&z={z}`
 }
 
 /**

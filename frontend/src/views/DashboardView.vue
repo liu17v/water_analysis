@@ -3,13 +3,13 @@
     <!-- 统计卡片 -->
     <el-skeleton :loading="loading" animated>
       <template #template>
-        <el-row :gutter="20" style="margin-bottom:20px">
+        <el-row :gutter="24" class="card-grid-row">
           <el-col :span="6" v-for="i in 4" :key="i">
             <el-card shadow="hover"><el-skeleton-item variant="text" style="width:60%;height:28px" /><el-skeleton-item variant="text" style="width:30%;height:20px;margin-top:8px" /></el-card>
           </el-col>
         </el-row>
       </template>
-      <el-row :gutter="20" style="margin-bottom:20px">
+      <el-row :gutter="24" class="card-grid-row">
         <el-col :span="6" v-for="card in statCards" :key="card.label">
           <el-card shadow="hover" class="stat-card glass-fade-in" @click="card.onClick">
             <div class="stat-icon" :style="{background:card.bg + '88'}">
@@ -25,15 +25,15 @@
     </el-skeleton>
 
     <!-- 图表区 -->
-    <el-skeleton :loading="loading" animated style="margin-bottom:20px">
+    <el-skeleton :loading="loading" animated class="section-gap">
       <template #template>
-        <el-row :gutter="20">
+        <el-row :gutter="24" class="card-grid-row">
           <el-col :span="8" v-for="i in 3" :key="i">
             <el-card><el-skeleton-item variant="rect" style="height:260px" /></el-card>
           </el-col>
         </el-row>
       </template>
-      <el-row :gutter="20">
+      <el-row :gutter="24" class="card-grid-row">
         <el-col :span="8">
           <el-card header="任务状态分布" shadow="hover">
             <v-chart :option="statusPieOption" autoresize style="height:260px" />
@@ -54,15 +54,15 @@
     </el-skeleton>
 
     <!-- 第二行 -->
-    <el-skeleton :loading="loading" animated style="margin-bottom:20px">
+    <el-skeleton :loading="loading" animated class="section-gap">
       <template #template>
-        <el-row :gutter="20">
+        <el-row :gutter="24" class="card-grid-row">
           <el-col :span="12" v-for="i in 2" :key="i">
             <el-card><el-skeleton-item variant="rect" style="height:240px" /></el-card>
           </el-col>
         </el-row>
       </template>
-      <el-row :gutter="20">
+      <el-row :gutter="24" class="card-grid-row">
         <el-col :span="12">
           <el-card header="成功/异常对比" shadow="hover">
             <v-chart :option="successCompareOption" autoresize style="height:240px" />
@@ -272,17 +272,18 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.dashboard { max-width: 1500px; margin: 0 auto; }
+.dashboard { max-width: 1500px; margin: 0 auto; padding: 0; }
+
 .stat-card { cursor: pointer; transition: transform 0.25s ease, box-shadow 0.25s ease; }
-.stat-card:hover { transform: translateY(-3px); }
+.stat-card:active { transform: translateY(-1px); }
 .stat-card :deep(.el-card__body) {
-  display: flex; align-items: center; gap: 16px; width: 100%;
+  display: flex; align-items: center; gap: 16px; padding: 18px var(--card-padding) !important;
 }
 .stat-icon {
-  width: 56px; height: 56px; border-radius: 16px;
+  width: 52px; height: 52px; border-radius: 16px;
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
-.stat-value { font-size: 28px; font-weight: 700; line-height: 1.2; }
+.stat-value { font-size: 26px; font-weight: 700; line-height: 1.2; }
 .stat-label { font-size: 13px; color: var(--text-secondary); margin-top: 2px; }
 
 .anomaly-feed { display: flex; flex-direction: column; gap: 8px; max-height: 220px; overflow-y: auto; }
@@ -295,4 +296,13 @@ onUnmounted(() => {
 .anomaly-ind { font-weight: 600; color: var(--text-primary); min-width: 48px; }
 .anomaly-val { color: #f56c6c; }
 .anomaly-depth { color: var(--text-secondary); }
+
+@media (max-width: 1200px) {
+  .dashboard :deep(.el-col-6) { width: 50%; margin-bottom: 8px; }
+}
+@media (max-width: 768px) {
+  .dashboard :deep(.el-col-6) { width: 100%; }
+  .dashboard :deep(.el-col-8) { width: 100%; }
+  .dashboard :deep(.el-col-12) { width: 100%; }
+}
 </style>

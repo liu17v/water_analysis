@@ -43,7 +43,7 @@ def contour_html(grid: dict, indicator: str, depth: float, anomaly_points=None) 
         z=z, x=x, y=y,
         colorscale=COLORSCALE,
         contours=dict(showlabels=True),
-        colorbar=dict(title=dict(text=f"{label} ({unit})" if unit else label)),
+        colorbar=dict(title=dict(text=f"{label} ({unit})" if unit else label, side="top")),
         hovertemplate=f"Lon=%{{x:.4f}}<br>Lat=%{{y:.4f}}<br>{label}=%{{z:.2f}} {unit}<extra></extra>",
     ))
     if anomaly_points:
@@ -67,13 +67,14 @@ def contour_html(grid: dict, indicator: str, depth: float, anomaly_points=None) 
             ))
     fig.update_layout(
         title=dict(text=f"{label} 等值线图 — 深度 {depth}m"),
-        xaxis=dict(title="经度"),
-        yaxis=dict(title="纬度"),
-        height=500,
-        margin=dict(l=40, r=40, t=50, b=40),
+        autosize=True,
+        xaxis=dict(title="经度", automargin=True),
+        yaxis=dict(title="纬度", automargin=True),
+        margin=dict(l=70, r=120, t=70, b=70),
         dragmode="pan",
+        legend=dict(orientation="h", yanchor="top", y=-0.12, xanchor="center", x=0.5),
     )
-    return fig.to_html(full_html=True, include_plotlyjs="cdn")
+    return fig.to_html(full_html=True, include_plotlyjs="cdn", config={'responsive': True})
 
 
 def build_volume(layer_grids: dict, indicator: str):
@@ -125,7 +126,7 @@ def volume_html(volume: dict, indicator: str, anomaly_points=None) -> str:
         surface_count=12,
         caps=dict(x=dict(show=False), y=dict(show=False), z=dict(show=False)),
         colorscale=COLORSCALE,
-        colorbar=dict(title=dict(text=f"{label} ({unit})" if unit else label)),
+        colorbar=dict(title=dict(text=f"{label} ({unit})" if unit else label, side="top")),
     ))
     if anomaly_points:
         short_code = {"chlorophyll": "chl", "dissolved_oxygen": "odo",
@@ -155,9 +156,10 @@ def volume_html(volume: dict, indicator: str, anomaly_points=None) -> str:
             camera=dict(eye=dict(x=1.5, y=1.5, z=1.0)),
         ),
         height=700,
-        margin=dict(l=20, r=20, t=50, b=20),
+        margin=dict(l=30, r=120, t=70, b=70),
+        legend=dict(orientation="h", yanchor="top", y=-0.12, xanchor="center", x=0.5),
     )
-    return fig.to_html(full_html=True, include_plotlyjs="cdn")
+    return fig.to_html(full_html=True, include_plotlyjs="cdn", config={'responsive': True})
 
 
 def generate_3d_html(rows, indicator, anomaly_points=None) -> str:
@@ -190,7 +192,7 @@ def _fallback_scatter(rows, indicator, anomaly_points=None) -> str:
         marker=dict(
             size=3, color=vals,
             colorscale=COLORSCALE,
-            colorbar=dict(title=dict(text=f"{label} ({unit})" if unit else label)),
+            colorbar=dict(title=dict(text=f"{label} ({unit})" if unit else label, side="top")),
         ),
         hovertemplate=f"Lon=%{{x:.4f}}<br>Lat=%{{y:.4f}}<br>Depth=%{{z}}m<br>{label}=%{{marker.color:.2f}}<extra></extra>",
     ))
@@ -218,8 +220,10 @@ def _fallback_scatter(rows, indicator, anomaly_points=None) -> str:
         title=dict(text=f"{label} 三维散点图"),
         scene=dict(xaxis_title="经度", yaxis_title="纬度", zaxis_title="深度 (m)"),
         height=700,
+        margin=dict(l=30, r=120, t=70, b=70),
+        legend=dict(orientation="h", yanchor="top", y=-0.12, xanchor="center", x=0.5),
     )
-    return fig.to_html(full_html=True, include_plotlyjs="cdn")
+    return fig.to_html(full_html=True, include_plotlyjs="cdn", config={'responsive': True})
 
 
 def export_image(fig: go.Figure, path: str):

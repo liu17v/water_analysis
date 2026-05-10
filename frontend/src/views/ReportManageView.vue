@@ -3,7 +3,7 @@
     <el-page-header @back="$router.push('/')" content="智能报告" style="margin-bottom:16px" />
 
     <!-- 生成新报告 -->
-    <el-card header="生成新报告" style="margin-bottom:16px">
+    <el-card header="生成新报告" class="section-gap">
       <el-row :gutter="16" align="middle">
         <el-col :span="10">
           <el-select
@@ -68,8 +68,7 @@
           sub-title="报告已保存，可在线预览或下载"
         >
           <template #extra>
-            <el-button type="primary" @click="previewGenerated">在线预览</el-button>
-            <el-button type="success" @click="downloadGenerated">下载 DOCX</el-button>
+            <el-button type="primary" @click="downloadGenerated">下载 DOCX</el-button>
           </template>
         </el-result>
         <el-alert v-if="genResult === 'fail'" :title="genError" type="error" show-icon :closable="false" />
@@ -95,20 +94,11 @@
             <StatusTag :status="row.report_path ? 'success' : 'pending'" />
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="240" fixed="right">
+        <el-table-column label="操作" width="280" fixed="right">
           <template #default="{ row }">
-            <el-button size="small" type="primary" text @click="$router.push(`/task/${row.task_id}`)">
-              <el-icon><View /></el-icon> 任务详情
-            </el-button>
-            <el-button size="small" type="success" text @click="previewReport(row)">
-              <el-icon><View /></el-icon> 预览
-            </el-button>
-            <el-button size="small" type="warning" text @click="openReport(row)">
-              <el-icon><Download /></el-icon> 下载
-            </el-button>
-            <el-button size="small" type="danger" text @click="handleDelete(row.task_id)">
-              <el-icon><Delete /></el-icon> 删除
-            </el-button>
+            <el-button size="small" text type="primary" @click="$router.push(`/task/${row.task_id}`)">详情</el-button>
+            <el-button size="small" text type="warning" @click="openReport(row)">下载</el-button>
+            <el-button size="small" text type="danger" @click="handleDelete(row.task_id)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -134,7 +124,7 @@ import { usePolling } from '../composables/usePolling'
 import { useStatus } from '../composables/useStatus'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import StatusTag from '../components/common/StatusTag.vue'
-import { View, Download, Delete, Document, Loading, Refresh } from '@element-plus/icons-vue'
+import { Download, Delete, Document, Loading, Refresh } from '@element-plus/icons-vue'
 
 const reportStore = useReportStore()
 const taskStore = useTaskStore()
@@ -163,11 +153,6 @@ function triggerDownload(url, filename) {
 function openReport(row) {
   if (!row.report_path) return
   triggerDownload(row.report_path, `${row.task_id}.docx`)
-}
-
-function previewReport(row) {
-  if (!row.task_id) return
-  window.open(`/reports/${row.task_id}.docx`, '_blank')
 }
 
 async function handleDelete(taskId) {
@@ -265,9 +250,6 @@ async function doGenerate() {
   }
 }
 
-function previewGenerated() {
-  window.open(`/reports/${selectedTaskId.value}.docx`, '_blank')
-}
 function downloadGenerated() {
   triggerDownload(`/reports/${selectedTaskId.value}.docx`, `${selectedTaskId.value}.docx`)
 }

@@ -3,7 +3,7 @@
     <el-page-header @back="$router.push('/tasks')" content="数据对比分析" style="margin-bottom:16px" />
 
     <!-- Task selectors -->
-    <el-card style="margin-bottom:16px">
+    <el-card class="section-gap">
       <el-row :gutter="16" align="middle">
         <el-col :span="10">
           <div class="select-label">任务 A</div>
@@ -41,7 +41,7 @@
 
     <template v-else>
       <!-- Summary cards -->
-      <el-row :gutter="16" style="margin-bottom:16px">
+      <el-row :gutter="20" class="card-grid-row">
         <el-col :span="8" v-for="c in summaryCards" :key="c.label">
           <el-card shadow="hover" class="summary-card">
             <div class="sc-name">{{ c.label }}</div>
@@ -63,7 +63,7 @@
       </el-row>
 
       <!-- Indicator stat comparison -->
-      <el-card header="指标统计对比" style="margin-bottom:16px">
+      <el-card header="指标统计对比" class="section-gap">
         <el-table :data="indicatorCompare" stripe border size="small">
           <el-table-column prop="label" label="指标" width="120" />
           <el-table-column label="均值 (A)" width="120">
@@ -93,7 +93,7 @@
       </el-card>
 
       <!-- Charts row -->
-      <el-row :gutter="16" style="margin-bottom:16px">
+      <el-row :gutter="20" class="card-grid-row">
         <el-col :span="12">
           <el-card header="异常点数量对比">
             <v-chart v-if="anomalyBarOption" :option="anomalyBarOption" autoresize style="height:280px" />
@@ -108,7 +108,7 @@
       </el-row>
 
       <!-- Depth profile comparison -->
-      <el-card header="深度剖面对比" style="margin-bottom:16px">
+      <el-card header="深度剖面对比" class="section-gap">
         <div class="viz-controls" style="margin-bottom:12px">
           <span class="ctrl-label">指标</span>
           <el-select v-model="profileIndicator" @change="loadProfileComparison" style="width:180px">
@@ -258,8 +258,17 @@ async function loadProfileComparison() {
     const getMean = (prof, d) => { const p = (prof.profile || []).find(x => x.depth === d); return p?.mean ?? null }
     profileOption.value = {
       tooltip: { trigger: 'axis' },
-      legend: { data: ['任务A', '任务B'], bottom: 0 },
-      grid: { left: 60, right: 20, top: 10, bottom: 30 },
+      legend: {
+        data: ['任务A', '任务B'],
+        orient: 'horizontal',
+        left: 'center',
+        top: 'auto',
+        bottom: 0,
+        icon: 'roundRect',
+        itemWidth: 16,
+        itemHeight: 4,
+      },
+      grid: { left: 60, right: 30, top: 20, bottom: 40 },
       xAxis: { type: 'value', name: shortLabel(profileIndicator.value) },
       yAxis: { type: 'category', data: depths, name: '深度(m)', inverse: true },
       series: [
@@ -281,6 +290,7 @@ onMounted(() => {
 .vs-text { font-size: 28px; font-weight: 700; color: var(--text-muted); }
 
 .summary-card { text-align: center; }
+.summary-card :deep(.el-card__body) { padding: 16px 12px; }
 .sc-name { font-size: 13px; color: var(--text-secondary); margin-bottom: 10px; }
 .sc-val { font-size: 22px; font-weight: 700; }
 .sc-tag { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
@@ -288,4 +298,8 @@ onMounted(() => {
 
 .ctrl-label { font-size: 13px; color: var(--text-primary); font-weight: 500; }
 .viz-controls { display: flex; align-items: center; gap: 10px; }
+
+@media (max-width: 900px) {
+  .compare-view :deep(.el-col-8) { width: 100%; margin-bottom: 8px; }
+}
 </style>

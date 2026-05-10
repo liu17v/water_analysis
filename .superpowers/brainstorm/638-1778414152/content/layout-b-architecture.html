@@ -1,0 +1,87 @@
+<h2>完整设计方案</h2>
+<p class="subtitle">架构 + 数据流 + 组件设计</p>
+
+<div class="section">
+  <h3>页面布局</h3>
+  <div class="mockup" style="width:100%;max-width:600px;margin:0 auto;">
+    <div class="mockup-body" style="position:relative;height:400px;background:#e8edf2;border-radius:8px;">
+      <!-- 搜索 -->
+      <div style="position:absolute;top:12px;left:12px;background:white;border-radius:24px;padding:8px 16px;box-shadow:0 2px 8px rgba(0,0,0,0.15);font-size:13px;width:220px;">🔍 搜索地点...</div>
+      <!-- 模式切换 -->
+      <div style="position:absolute;top:12px;left:250px;display:flex;gap:4px;background:white;border-radius:6px;padding:4px;box-shadow:0 2px 8px rgba(0,0,0,0.15);">
+        <span style="background:#409eff;color:white;padding:4px 10px;border-radius:4px;font-size:12px;">街道</span>
+        <span style="padding:4px 10px;color:#666;font-size:12px;">卫星</span>
+      </div>
+      <!-- 右侧面板 -->
+      <div style="position:absolute;top:12px;right:12px;width:210px;background:white;border-radius:12px;padding:16px;box-shadow:0 4px 20px rgba(0,0,0,0.12);">
+        <div style="font-size:11px;color:#999;margin-bottom:4px;">📍 当前位置</div>
+        <div style="font-size:12px;color:#333;line-height:1.4;margin-bottom:10px;">湖北省武汉市...</div>
+        <div style="height:1px;background:#f0f0f0;margin:8px 0;"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;margin-bottom:8px;">
+          <div><div style="font-size:10px;color:#999;">经度</div><div style="font-size:13px;font-weight:600;">114.30</div></div>
+          <div><div style="font-size:10px;color:#999;">纬度</div><div style="font-size:13px;font-weight:600;">30.50</div></div>
+          <div><div style="font-size:10px;color:#999;">缩放</div><div style="font-size:13px;font-weight:600;">10</div></div>
+        </div>
+        <div style="height:1px;background:#f0f0f0;margin:8px 0;"></div>
+        <div style="background:linear-gradient(135deg,#409eff,#1a5fa8);border-radius:10px;padding:14px;color:white;">
+          <div style="font-size:10px;opacity:0.8;">实时天气</div>
+          <div style="display:flex;align-items:center;gap:12px;margin-top:4px;">
+            <span style="font-size:32px;font-weight:700;">28°</span>
+            <div><div style="font-size:14px;">晴</div><div style="font-size:11px;opacity:0.85;">湿度55% 南风3级</div></div>
+          </div>
+        </div>
+      </div>
+      <!-- 缩放 -->
+      <div style="position:absolute;bottom:20px;right:12px;background:white;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.15);overflow:hidden;">
+        <span style="display:block;padding:8px 16px;border-bottom:1px solid #eee;font-size:20px;text-align:center;">+</span>
+        <span style="display:block;padding:8px 16px;font-size:22px;text-align:center;">−</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>数据流</h3>
+  <p>所有高德 API 调用通过后端代理转发，浏览器不直接调 Amap Web Service：</p>
+  <pre style="background:#f5f7fa;padding:12px;border-radius:8px;font-size:12px;line-height:1.6;">
+  地图拖动 → moveend事件
+    → amapRegeo(lon,lat) → GET /api/regeo            → Amap 逆地理编码
+    → fetchWeather(city)  → GET /api/weather          → Amap 天气查询
+
+  搜索回车 → amapGeocode(q) → GET /api/geocode?address=... → Amap 地理编码
+    → map.flyTo(result.lat, result.lon)</pre>
+</div>
+
+<div class="section">
+  <h3>需要改动的文件</h3>
+  <div style="font-size:13px;line-height:1.8;">
+    <strong>后端 (Python):</strong><br/>
+    • <code>app/routers/amap.py</code> — 新增 <code>GET /api/regeo</code> 端点<br/>
+    <br/>
+    <strong>前端 (Vue):</strong><br/>
+    • <code>src/utils/amap.js</code> — amapRegeo 改为调用后端代理<br/>
+    • <code>src/views/MapView.vue</code> — 按新布局全部重写模板+样式<br/>
+    <br/>
+    <strong>不涉及的代码:</strong><br/>
+    • router、sidebar、header — 不需要改（路由不变）<br/>
+    • useWeather.js — 逻辑不变<br/>
+    • main.py — amap router 已注册，无需再改
+  </div>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="approve" onclick="toggleSelect(this)">
+    <div class="letter">✓</div>
+    <div class="content">
+      <h3>确认方案</h3>
+      <p>开始实施</p>
+    </div>
+  </div>
+  <div class="option" data-choice="revision" onclick="toggleSelect(this)">
+    <div class="letter">✗</div>
+    <div class="content">
+      <h3>需要调整</h3>
+      <p>还有不满意的地方</p>
+    </div>
+  </div>
+</div>

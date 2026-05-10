@@ -40,7 +40,7 @@
       <el-sub-menu index="map-group">
         <template #title>
           <el-icon><MapLocation /></el-icon>
-          <span>地图</span>
+          <span>地图&天气</span>
         </template>
         <el-menu-item index="/map/street">街道地图</el-menu-item>
         <el-menu-item index="/map/satellite">卫星地图</el-menu-item>

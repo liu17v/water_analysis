@@ -1,0 +1,84 @@
+<h2>方案 B 细化 — 右侧面板内容</h2>
+<p class="subtitle">面板应该包含哪些信息？怎样展示？</p>
+
+<div class="mockup" style="width:100%;max-width:460px;margin:0 auto;">
+  <div class="mockup-body" style="position:relative;height:340px;background:#e8edf2;">
+    <!-- 搜索左上 -->
+    <div style="position:absolute;top:12px;left:12px;background:white;border-radius:24px;padding:8px 16px;box-shadow:0 2px 8px rgba(0,0,0,0.15);font-size:13px;color:#999;width:200px;">🔍 搜索地点...</div>
+    <!-- 右侧面板 - 新版 -->
+    <div style="position:absolute;top:12px;right:12px;width:210px;background:white;border-radius:12px;padding:16px;box-shadow:0 4px 20px rgba(0,0,0,0.12);font-family:sans-serif;">
+      <!-- 当前位置 -->
+      <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:12px;">
+        <span style="font-size:16px;margin-top:1px;">📍</span>
+        <div>
+          <div style="font-size:11px;color:#999;margin-bottom:2px;">当前位置</div>
+          <div style="font-size:12px;color:#333;line-height:1.4;">湖北省武汉市洪山区...</div>
+        </div>
+      </div>
+
+      <!-- 分割线 -->
+      <div style="height:1px;background:#f0f0f0;margin:8px 0;"></div>
+
+      <!-- 坐标网格 -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px;">
+        <div>
+          <div style="font-size:10px;color:#999;">经度</div>
+          <div style="font-size:13px;font-weight:600;color:#333;">114.3000</div>
+        </div>
+        <div>
+          <div style="font-size:10px;color:#999;">纬度</div>
+          <div style="font-size:13px;font-weight:600;color:#333;">30.5000</div>
+        </div>
+        <div>
+          <div style="font-size:10px;color:#999;">缩放</div>
+          <div style="font-size:13px;font-weight:600;color:#333;">10</div>
+        </div>
+      </div>
+
+      <!-- 分割线 -->
+      <div style="height:1px;background:#f0f0f0;margin:8px 0;"></div>
+
+      <!-- 天气卡片 -->
+      <div style="background:linear-gradient(135deg,#409eff,#1a5fa8);border-radius:10px;padding:14px;color:white;">
+        <div style="font-size:10px;opacity:0.8;margin-bottom:6px;">实时天气</div>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="text-align:center;">
+            <div style="font-size:32px;font-weight:700;line-height:1;">28°</div>
+          </div>
+          <div>
+            <div style="font-size:14px;font-weight:500;">晴</div>
+            <div style="font-size:11px;opacity:0.85;">湿度 55%</div>
+            <div style="font-size:11px;opacity:0.85;">南风 3级</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- 模式切换 -->
+    <div style="position:absolute;top:12px;left:230px;display:flex;gap:4px;background:white;border-radius:6px;padding:4px;box-shadow:0 2px 8px rgba(0,0,0,0.15);font-size:12px;">
+      <span style="background:#409eff;color:white;padding:4px 10px;border-radius:4px;">街道</span>
+      <span style="padding:4px 10px;color:#666;">卫星</span>
+    </div>
+    <!-- 缩放右下 -->
+    <div style="position:absolute;bottom:24px;right:12px;display:flex;flex-direction:column;background:white;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.15);overflow:hidden;">
+      <span style="padding:8px 16px;border-bottom:1px solid #eee;font-size:20px;cursor:pointer;text-align:center;line-height:1;">+</span>
+      <span style="padding:8px 16px;font-size:22px;cursor:pointer;text-align:center;line-height:1;">−</span>
+    </div>
+  </div>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="yes" onclick="toggleSelect(this)">
+    <div class="letter">✓</div>
+    <div class="content">
+      <h3>确认这个方向</h3>
+      <p>右侧面板包含 位置→坐标→天气渐变卡片，搜索框+模式切换在左上</p>
+    </div>
+  </div>
+  <div class="option" data-choice="revise" onclick="toggleSelect(this)">
+    <div class="letter">✗</div>
+    <div class="content">
+      <h3>需要调整</h3>
+      <p>内容和布局还需要修改</p>
+    </div>
+  </div>
+</div>

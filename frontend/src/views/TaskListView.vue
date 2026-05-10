@@ -1,32 +1,24 @@
 <template>
   <div class="task-list-view">
     <!-- Search & Filter Bar -->
-    <el-card class="filter-bar">
-      <el-row :gutter="12" align="middle">
-        <el-col :span="5">
-          <el-input v-model="search" placeholder="搜索任务ID/水库/文件名" clearable @clear="onSearch" @keyup.enter="onSearch">
+    <el-card class="filter-bar-card">
+      <div class="filter-bar">
+        <div class="filter-bar-left">
+          <el-input v-model="search" placeholder="搜索任务ID/水库/文件名" clearable @clear="onSearch" @keyup.enter="onSearch" style="width:200px">
             <template #prefix><el-icon><Search /></el-icon></template>
           </el-input>
-        </el-col>
-        <el-col :span="4">
-          <el-select v-model="filterStatus" placeholder="状态筛选" clearable multiple collapse-tags @change="onSearch">
+          <el-select v-model="filterStatus" placeholder="状态筛选" clearable multiple collapse-tags @change="onSearch" style="width:160px">
             <el-option label="已完成" value="success" />
             <el-option label="处理中" value="processing" />
             <el-option label="待处理" value="pending" />
             <el-option label="失败" value="failed" />
           </el-select>
-        </el-col>
-        <el-col :span="6">
           <el-date-picker v-model="dateRange" type="daterange" range-separator="至"
             start-placeholder="开始日期" end-placeholder="结束日期" format="YYYY-MM-DD" value-format="YYYY-MM-DD"
-            @change="onSearch" style="width:100%" />
-        </el-col>
-        <el-col :span="4">
+            @change="onSearch" style="width:230px" />
           <el-button type="primary" @click="onSearch"><el-icon><Search /></el-icon> 搜索</el-button>
           <el-button @click="resetFilters"><el-icon><Refresh /></el-icon></el-button>
-        </el-col>
-        <el-col :span="5" style="text-align:right">
-          <el-button-group>
+          <el-button-group class="view-toggle">
             <el-button :type="viewMode === 'table' ? 'primary' : ''" size="small" @click="viewMode='table'">
               <el-icon><List /></el-icon>
             </el-button>
@@ -34,19 +26,20 @@
               <el-icon><Grid /></el-icon>
             </el-button>
           </el-button-group>
-          <el-button type="primary" style="margin-left:8px" @click="$router.push('/upload')">
+        </div>
+        <div class="filter-bar-right">
+          <el-button type="primary" @click="$router.push('/upload')">
             <el-icon><Plus /></el-icon> 上传数据
           </el-button>
-          <el-button v-if="selected.length" type="danger" style="margin-left:4px"
-            @click="batchDelete" :loading="batchLoading">
+          <el-button v-if="selected.length" type="danger" @click="batchDelete" :loading="batchLoading">
             <el-icon><Delete /></el-icon> 删除({{ selected.length }})
           </el-button>
-        </el-col>
-      </el-row>
+        </div>
+      </div>
     </el-card>
 
     <!-- Table View -->
-    <el-card v-if="viewMode === 'table'" style="margin-top:12px">
+    <el-card v-if="viewMode === 'table'" class="section-gap">
       <el-skeleton :loading="taskStore.loading.list" animated>
         <template #template>
           <el-skeleton-item v-for="i in 8" :key="i" variant="text" style="height:32px;margin-bottom:6px" />
@@ -258,13 +251,42 @@ onMounted(fetchData)
 
 <style scoped>
 .task-list-view { max-width: 1500px; margin: 0 auto; }
-.filter-bar { margin-bottom: 0; }
-.filter-bar :deep(.el-card__body) { padding: 12px 16px; }
 
-.pagination-row { display: flex; justify-content: space-between; align-items: center; margin-top: 16px; }
-.total-text { font-size: 13px; color: var(--text-secondary); }
+/* ── 筛选栏 ── */
+.filter-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.filter-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex: 1;
+}
+.filter-bar-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.view-toggle { flex-shrink: 0; }
 
-.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-top: 12px; }
+@media (max-width: 1100px) {
+  .filter-bar { flex-direction: column; align-items: stretch; }
+  .filter-bar-left { flex-wrap: wrap; }
+  .filter-bar-left .el-input,
+  .filter-bar-left .el-select,
+  .filter-bar-left .el-date-editor { flex: 1; min-width: 140px; }
+}
+@media (max-width: 768px) {
+  .task-list-view :deep(.el-table__cell) { padding: 8px 4px; }
+}
+
+.card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: var(--section-gap); }
 .task-card { cursor: pointer; transition: all 0.3s ease; animation: glassFadeInUp 0.4s ease both; }
 .task-card:nth-child(2) { animation-delay: 0.05s; }
 .task-card:nth-child(3) { animation-delay: 0.10s; }

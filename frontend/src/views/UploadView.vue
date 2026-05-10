@@ -1,6 +1,6 @@
 <template>
   <div class="upload-view">
-    <el-row :gutter="24">
+    <el-row :gutter="24" class="card-grid-row">
       <el-col :span="16">
         <div class="upload-zone">
           <div class="reservoir-input-wrapper">
@@ -51,7 +51,7 @@
       </el-col>
     </el-row>
 
-    <el-card header="最近任务" style="margin-top:24px">
+    <el-card header="最近任务" class="section-gap-lg">
       <template #extra>
         <el-button text type="primary" @click="$router.push('/tasks')">查看全部</el-button>
       </template>
@@ -216,15 +216,21 @@ onMounted(() => {
 
 <style scoped>
 .upload-view { max-width: 1400px; margin: 0 auto; }
+.upload-view :deep(.card-grid-row) { align-items: stretch; }
 .upload-zone {
   border: 2px dashed rgba(64, 158, 255, 0.25);
   border-radius: 24px;
-  padding: 24px 40px 40px;
+  padding: 28px 32px 36px;
   text-align: center;
   transition: all 0.3s ease;
   background: rgba(255, 255, 255, 0.4);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100%;
 }
 .upload-zone:hover {
   border-color: rgba(64, 158, 255, 0.5);
@@ -246,4 +252,9 @@ onMounted(() => {
 }
 .drop-text { font-size: 16px; color: var(--text-primary); margin: 16px 0 8px; }
 .drop-hint { font-size: 13px; color: var(--text-secondary); }
+
+@media (max-width: 900px) {
+  .upload-view :deep(.el-col-16),
+  .upload-view :deep(.el-col-8) { width: 100%; }
+}
 </style>

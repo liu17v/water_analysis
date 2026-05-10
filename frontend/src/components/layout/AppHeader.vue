@@ -40,7 +40,7 @@ const breadcrumb1 = computed(() => {
     '/compare': { label: '数据对比', to: '/compare' },
     '/anomalies': { label: '异常管理', to: '/anomalies' },
     '/reports': { label: '智能报告', to: '/reports' },
-    '/map': { label: '地图', to: '/map' },
+    '/map': { label: '地图&天气', to: '/map' },
     '/users': { label: '用户管理', to: '/users' },
   }
   if (map[path]) return map[path]
