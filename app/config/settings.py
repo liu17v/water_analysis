@@ -79,6 +79,9 @@ class Settings(BaseSettings):
     TEMP_MIN: float = 0.0
     TEMP_MAX: float = 35.0
 
+    # Amap
+    AMAP_API_KEY: str = ""
+
     # Log
     LOG_LEVEL: str = "INFO"
 

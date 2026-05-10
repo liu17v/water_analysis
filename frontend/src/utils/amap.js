@@ -1,6 +1,7 @@
 /**
  * 高德地图 (Amap) 工具模块
  * 提供 Leaflet 高德瓦片图层、地理编码等功能
+ * 注意：地理编码和天气查询通过后端代理转发，避免浏览器 CORS 限制
  */
 
 // 高德瓦片服务 — 无需 key 也可用（瓦片 CDN），带上 key 确保稳定
@@ -56,27 +57,26 @@ export function createAmapLayers(L) {
 }
 
 /**
- * 高德地理编码 — 地名 → 坐标
- * https://restapi.amap.com/v3/geocode/geo
+ * 高德地理编码 — 地名 → 坐标（通过后端代理）
+ * @returns {{ lon: number, lat: number, name: string }[]}
  */
 export async function amapGeocode(address, city = '') {
-  const params = new URLSearchParams({ key: KEY, address, output: 'JSON' })
+  const params = new URLSearchParams({ address })
   if (city) params.set('city', city)
   try {
-    const res = await fetch(`https://restapi.amap.com/v3/geocode/geo?${params}`)
+    const res = await fetch(`/api/geocode?${params}`)
     const data = await res.json()
-    if (data.status === '1' && data.geocodes?.length) {
-      const [lon, lat] = data.geocodes[0].location.split(',').map(Number)
-      return { lon, lat, name: data.geocodes[0].formatted_address }
+    if (data.status === 1 && data.datas?.items?.length) {
+      return data.datas.items
     }
-    return null
+    return []
   } catch {
-    return null
+    return []
   }
 }
 
 /**
- * 高德逆地理编码 — 坐标 → 地名
+ * 高德逆地理编码 — 坐标 → 地名（通过后端代理）
  * @returns {{ address: string, city: string, adcode: string, province: string, district: string } | null}
  */
 export async function amapRegeo(lon, lat) {
@@ -101,23 +101,16 @@ export async function amapRegeo(lon, lat) {
 }
 
 /**
- * 高德天气查询 — 实时天气
- * https://restapi.amap.com/v3/weather/weatherInfo
+ * 高德天气查询 — 实时天气（通过后端代理）
  * @param {string} city - 城市名（如 "武汉市"）或 adcode（如 "420100"）
  * @returns {{ temperature, humidity, weather, winddirection, windpower, city, adcode } | null}
  */
 export async function amapWeather(city) {
-  const params = new URLSearchParams({
-    key: KEY,
-    city,
-    extensions: 'base',
-    output: 'JSON',
-  })
   try {
-    const res = await fetch(`https://restapi.amap.com/v3/weather/weatherInfo?${params}`)
+    const res = await fetch(`/api/weather?city=${encodeURIComponent(city)}`)
     const data = await res.json()
-    if (data.status === '1' && data.lives?.length) {
-      const live = data.lives[0]
+    if (data.status === 1 && data.datas?.length) {
+      const live = data.datas[0]
       return {
         temperature: live.temperature,
         humidity: live.humidity,
