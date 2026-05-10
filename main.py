@@ -1,8 +1,9 @@
 """水质三维智能监测与分析系统 - 应用入口"""
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, APIRouter
-from fastapi.responses import RedirectResponse
+from pathlib import Path
+from fastapi import FastAPI, HTTPException, APIRouter, Request
+from fastapi.responses import RedirectResponse, FileResponse
 from starlette.middleware.cors import CORSMiddleware
 from starlette.staticfiles import StaticFiles
 
@@ -84,15 +85,29 @@ app.include_router(api_router)
 
 
 @app.get("/", include_in_schema=False)
-
-
-
 def root():
-    return RedirectResponse(url="/static/index.html")
+    return RedirectResponse(url="/ui/")
 
 
-# 静态文件
-app.mount("/static", StaticFiles(directory=settings.STATIC_DIR, html=True), name="static")
+# 静态文件（Vue SPA — 必须用路由而非 mount，才能支持 history 模式降级）
+UI_DIR = Path(settings.STATIC_DIR)
+
+
+@app.get("/ui/{full_path:path}", include_in_schema=False)
+async def serve_ui(full_path: str):
+    file_path = UI_DIR / full_path
+    if file_path.exists() and file_path.is_file():
+        return FileResponse(str(file_path))
+    return FileResponse(str(UI_DIR / "index.html"))
+
+
+@app.get("/ui", include_in_schema=False)
+async def ui_root():
+    return FileResponse(str(UI_DIR / "index.html"))
+
+
+# 遗留兼容：旧 /static/ 路径也挂上
+app.mount("/static", StaticFiles(directory=settings.STATIC_DIR, html=True), name="static_legacy")
 app.mount("/reports", StaticFiles(directory=settings.REPORT_DIR), name="reports")
 app.mount("/3d", StaticFiles(directory=settings.THREED_DIR), name="3d")
 

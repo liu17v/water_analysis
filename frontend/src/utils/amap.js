@@ -77,6 +77,7 @@ export async function amapGeocode(address, city = '') {
 
 /**
  * 高德逆地理编码 — 坐标 → 地名
+ * @returns {{ address: string, city: string, adcode: string, province: string, district: string } | null}
  */
 export async function amapRegeo(lon, lat) {
   const params = new URLSearchParams({ key: KEY, location: `${lon},${lat}`, output: 'JSON' })
@@ -84,7 +85,48 @@ export async function amapRegeo(lon, lat) {
     const res = await fetch(`https://restapi.amap.com/v3/geocode/regeo?${params}`)
     const data = await res.json()
     if (data.status === '1' && data.regeocode) {
-      return data.regeocode.formatted_address
+      const ac = data.regeocode.addressComponent || {}
+      return {
+        address: data.regeocode.formatted_address,
+        city: ac.city || ac.province || '',
+        adcode: ac.adcode || '',
+        province: ac.province || '',
+        district: ac.district || '',
+      }
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * 高德天气查询 — 实时天气
+ * https://restapi.amap.com/v3/weather/weatherInfo
+ * @param {string} city - 城市名（如 "武汉市"）或 adcode（如 "420100"）
+ * @returns {{ temperature, humidity, weather, winddirection, windpower, city, adcode } | null}
+ */
+export async function amapWeather(city) {
+  const params = new URLSearchParams({
+    key: KEY,
+    city,
+    extensions: 'base',
+    output: 'JSON',
+  })
+  try {
+    const res = await fetch(`https://restapi.amap.com/v3/weather/weatherInfo?${params}`)
+    const data = await res.json()
+    if (data.status === '1' && data.lives?.length) {
+      const live = data.lives[0]
+      return {
+        temperature: live.temperature,
+        humidity: live.humidity,
+        weather: live.weather,
+        winddirection: live.winddirection,
+        windpower: live.windpower,
+        city: live.city,
+        adcode: live.adcode,
+      }
     }
     return null
   } catch {

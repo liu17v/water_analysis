@@ -231,7 +231,7 @@ async function loadReportableTasks() {
 
     const savedPage = page.value
     const savedPageSize = pageSize.value
-    const res = await reportStore.fetchReports(1, 999)
+    const res = await reportStore.fetchReports(1, 100)
     const reportedIds = new Set((res.items || []).map(r => r.task_id))
     reportableTasks.value = successTasks.filter(t => !reportedIds.has(t.task_id))
     await reportStore.fetchReports(savedPage, savedPageSize)

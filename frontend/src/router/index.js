@@ -67,6 +67,23 @@ const routes = [
     component: () => import('../views/UserManageView.vue'),
     meta: { requiresAuth: true, requiresAdmin: true },
   },
+  {
+    path: '/map',
+    redirect: '/map/street',
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/map/street',
+    name: 'MapStreet',
+    component: () => import('../views/MapView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/map/satellite',
+    name: 'MapSatellite',
+    component: () => import('../views/MapView.vue'),
+    meta: { requiresAuth: true },
+  },
 ]
 
 const router = createRouter({

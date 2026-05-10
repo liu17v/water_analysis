@@ -2,7 +2,7 @@
   <router-view v-if="isLoginPage" />
   <el-container v-else class="app-container">
     <AppSidebar :is-collapse="isCollapse" @toggle="isCollapse = !isCollapse" />
-    <el-container>
+    <el-container class="app-right">
       <AppHeader />
       <el-main class="app-main">
         <router-view v-slot="{ Component }">
@@ -29,9 +29,10 @@ const isLoginPage = computed(() => route.path === '/login')
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif; background: #f0f2f5; }
-.app-container { min-height: 100vh; }
+.app-container { height: 100vh; overflow: hidden; }
+.app-right { flex: 1; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
 .el-menu { border-right: none !important; flex: 1; }
-.app-main { padding: 20px; min-height: calc(100vh - 56px); }
+.app-main { flex: 1; padding: 20px; overflow-y: auto; }
 .fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
 </style>

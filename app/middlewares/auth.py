@@ -27,7 +27,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
         path = request.url.path
 
-        if path.startswith("/static/") or path.startswith("/reports/"):
+        if path.startswith("/static/") or path.startswith("/ui/") or path == "/ui" or path == "/favicon.ico" or path.startswith("/reports/"):
             return await call_next(request)
 
         for white in WHITE_LIST:
