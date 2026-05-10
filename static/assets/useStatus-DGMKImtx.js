@@ -1,0 +1,1 @@
+const t={pending:"待处理",processing:"处理中",success:"已完成",failed:"失败"},u={pending:"info",processing:"warning",success:"success",failed:"danger"};function c(){function s(n){return t[n]||n}function e(n){return u[n]||"info"}return{statusLabel:s,statusType:e}}export{c as u};
