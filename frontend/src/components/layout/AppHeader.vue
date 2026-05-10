@@ -1,20 +1,22 @@
 <template>
-  <el-header class="app-header">
+  <el-header class="app-header glass-header">
     <div class="header-left">
-      <el-breadcrumb separator="/">
+      <el-breadcrumb separator="›" class="glass-breadcrumb">
         <el-breadcrumb-item :to="{ path: '/' }">首页</el-breadcrumb-item>
         <el-breadcrumb-item v-if="breadcrumb1" :to="breadcrumb1.to">{{ breadcrumb1.label }}</el-breadcrumb-item>
         <el-breadcrumb-item v-if="breadcrumb2">{{ breadcrumb2 }}</el-breadcrumb-item>
       </el-breadcrumb>
     </div>
     <div class="header-right">
-      <el-tag type="success" size="small" effect="dark">系统运行中</el-tag>
+      <div class="status-dot" />
+      <span class="status-text">系统运行中</span>
+      <div class="header-divider" />
       <span class="header-user">
-        <el-icon><UserFilled /></el-icon>
-        <span style="margin:0 4px">{{ authStore.username || '管理员' }}</span>
-        <span v-if="authStore.role" class="role-tag">{{ authStore.isAdmin ? '管理员' : '用户' }}</span>
+        <el-icon :size="15"><UserFilled /></el-icon>
+        <span>{{ authStore.username || '管理员' }}</span>
+        <span v-if="authStore.role" class="role-badge">{{ authStore.isAdmin ? '管理员' : '用户' }}</span>
       </span>
-      <el-button text type="danger" size="small" @click="handleLogout">
+      <el-button text size="small" class="logout-btn" @click="handleLogout">
         <el-icon><SwitchButton /></el-icon> 退出
       </el-button>
     </div>
@@ -59,8 +61,108 @@ function handleLogout() {
 </script>
 
 <style scoped>
-.app-header { background: #fff; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; height: 56px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
-.header-right { display: flex; align-items: center; gap: 12px; }
-.header-user { display: flex; align-items: center; font-size: 13px; color: #606266; }
-.role-tag { font-size: 11px; color: #909399; }
+.glass-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 28px;
+  height: 56px;
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.03);
+  flex-shrink: 0;
+}
+
+@media (prefers-color-scheme: dark) {
+  .glass-header {
+    background: rgba(30, 35, 50, 0.7);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  }
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+}
+
+.glass-breadcrumb :deep(.el-breadcrumb__inner) {
+  color: var(--text-secondary) !important;
+  font-size: 13px;
+}
+
+.glass-breadcrumb :deep(.el-breadcrumb__inner:hover) {
+  color: var(--primary) !important;
+}
+
+.glass-breadcrumb :deep(.el-breadcrumb__item:last-child .el-breadcrumb__inner) {
+  color: var(--text-primary) !important;
+  font-weight: 600;
+}
+
+.glass-breadcrumb :deep(.el-breadcrumb__separator) {
+  color: var(--text-muted);
+  font-size: 14px;
+  font-weight: 300;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #67c23a;
+  box-shadow: 0 0 8px rgba(103, 194, 58, 0.5);
+  animation: glassPulse 2s infinite;
+}
+
+.status-text {
+  font-size: 12px;
+  color: #67c23a;
+  font-weight: 500;
+}
+
+.header-divider {
+  width: 1px;
+  height: 20px;
+  background: rgba(0, 0, 0, 0.08);
+  margin: 0 6px;
+}
+
+.header-user {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-primary);
+  padding: 4px 12px 4px 8px;
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 20px;
+}
+
+.role-badge {
+  font-size: 10px;
+  padding: 1px 8px;
+  border-radius: 10px;
+  background: rgba(64, 158, 255, 0.1);
+  color: var(--primary);
+  font-weight: 500;
+}
+
+.logout-btn {
+  color: var(--text-secondary) !important;
+  border-radius: 16px !important;
+  transition: all 0.2s ease !important;
+}
+
+.logout-btn:hover {
+  color: #f56c6c !important;
+  background: rgba(245, 108, 108, 0.08) !important;
+}
 </style>

@@ -56,3 +56,33 @@ async def proxy_geocode(address: str = Query(...), city: str = Query("")):
     except Exception as e:
         logger.error(f"高德地理编码 API 请求失败: address={address} err={e}")
         return fail("地理编码服务暂不可用")
+
+
+@amap_router.get("/api/regeo", summary="高德逆地理编码代理")
+async def proxy_regeo(lon: float = Query(...), lat: float = Query(...)):
+    if not settings.AMAP_API_KEY:
+        return fail("未配置高德 API 密钥")
+
+    params = {
+        "key": settings.AMAP_API_KEY,
+        "location": f"{lon},{lat}",
+        "output": "JSON",
+    }
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.get("https://restapi.amap.com/v3/geocode/regeo", params=params)
+            data = resp.json()
+        if data.get("status") == "1" and data.get("regeocode"):
+            ac = data["regeocode"].get("addressComponent", {})
+            return success(datas={
+                "address": data["regeocode"]["formatted_address"],
+                "city": ac.get("city") or ac.get("province", ""),
+                "adcode": ac.get("adcode", ""),
+                "province": ac.get("province", ""),
+                "district": ac.get("district", ""),
+            })
+        logger.warning(f"高德逆地理编码 API 返回异常: lon={lon} lat={lat} resp={data}")
+        return fail("未识别位置")
+    except Exception as e:
+        logger.error(f"高德逆地理编码 API 请求失败: lon={lon} lat={lat} err={e}")
+        return fail("逆地理编码服务暂不可用")

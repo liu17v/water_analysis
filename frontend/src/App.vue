@@ -27,12 +27,12 @@ const isLoginPage = computed(() => route.path === '/login')
 </script>
 
 <style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif; background: #f0f2f5; }
+@import './styles/glass.css';
+
 .app-container { height: 100vh; overflow: hidden; }
 .app-right { flex: 1; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
-.el-menu { border-right: none !important; flex: 1; }
-.app-main { flex: 1; padding: 20px; overflow-y: auto; }
+.app-main { flex: 1; padding: 24px; overflow-y: auto; }
+
 .fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
 </style>

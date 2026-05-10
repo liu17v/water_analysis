@@ -80,19 +80,11 @@ export async function amapGeocode(address, city = '') {
  * @returns {{ address: string, city: string, adcode: string, province: string, district: string } | null}
  */
 export async function amapRegeo(lon, lat) {
-  const params = new URLSearchParams({ key: KEY, location: `${lon},${lat}`, output: 'JSON' })
   try {
-    const res = await fetch(`https://restapi.amap.com/v3/geocode/regeo?${params}`)
+    const res = await fetch(`/api/regeo?lon=${lon}&lat=${lat}`)
     const data = await res.json()
-    if (data.status === '1' && data.regeocode) {
-      const ac = data.regeocode.addressComponent || {}
-      return {
-        address: data.regeocode.formatted_address,
-        city: ac.city || ac.province || '',
-        adcode: ac.adcode || '',
-        province: ac.province || '',
-        district: ac.district || '',
-      }
+    if (data.status === 1 && data.datas) {
+      return data.datas
     }
     return null
   } catch {
