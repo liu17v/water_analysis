@@ -219,12 +219,13 @@ const anomalyBarOption = computed(() => {
   const bInd = statsB.value?.indicators || {}
   const keys = Object.keys({ ...aInd, ...bInd })
   if (!keys.length) return null
+  const labels = keys.map(k => shortLabel(k))
   const colors = ['#409eff', '#67c23a']
   return {
     tooltip: { trigger: 'axis' },
     legend: { data: ['任务A', '任务B'], bottom: 0 },
-    grid: { left: 60, right: 20, top: 10, bottom: 30 },
-    xAxis: { type: 'category', data: keys },
+    grid: { left: 60, right: 20, top: 10, bottom: 50 },
+    xAxis: { type: 'category', data: labels, axisLabel: { rotate: 0 } },
     yAxis: { type: 'value', name: '异常数' },
     series: [
       { name: '任务A', type: 'bar', data: keys.map(k => (aInd[k]?.anomaly_count || 0)), itemStyle: { color: colors[0], borderRadius: [4, 4, 0, 0] } },
