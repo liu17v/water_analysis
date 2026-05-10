@@ -276,16 +276,16 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.compare-view { max-width: 1500px; margin: 0 auto; padding: 16px; }
-.select-label { font-size: 13px; color: #909399; margin-bottom: 4px; }
-.vs-text { font-size: 28px; font-weight: 700; color: #c0c4cc; }
+.compare-view { max-width: 1500px; margin: 0 auto; }
+.select-label { font-size: 13px; color: var(--text-secondary); margin-bottom: 4px; }
+.vs-text { font-size: 28px; font-weight: 700; color: var(--text-muted); }
 
 .summary-card { text-align: center; }
-.sc-name { font-size: 13px; color: #909399; margin-bottom: 10px; }
+.sc-name { font-size: 13px; color: var(--text-secondary); margin-bottom: 10px; }
 .sc-val { font-size: 22px; font-weight: 700; }
-.sc-tag { font-size: 11px; color: #c0c4cc; margin-top: 2px; }
+.sc-tag { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
 .sc-diff { font-size: 14px; font-weight: 600; padding-top: 12px; }
 
-.ctrl-label { font-size: 13px; color: #606266; font-weight: 500; }
+.ctrl-label { font-size: 13px; color: var(--text-primary); font-weight: 500; }
 .viz-controls { display: flex; align-items: center; gap: 10px; }
 </style>

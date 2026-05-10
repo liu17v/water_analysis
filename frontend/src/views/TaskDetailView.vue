@@ -365,7 +365,7 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.task-detail { max-width: 1400px; margin: 0 auto; padding: 16px; }
+.task-detail { max-width: 1400px; margin: 0 auto; }
 .info-card { margin-bottom: 16px; }
 .tab-content { padding: 8px 0; }
 
@@ -374,14 +374,14 @@ onUnmounted(() => {
 .indicator-header { display: flex; justify-content: space-between; align-items: center; }
 .indicator-name { font-weight: 600; font-size: 15px; }
 .stat-item { text-align: center; padding: 4px 0; }
-.stat-lbl { display: block; font-size: 12px; color: #909399; }
-.stat-num { display: block; font-size: 16px; font-weight: 600; color: #303133; margin-top: 2px; }
-.indicator-footer { margin-top: 10px; font-size: 12px; color: #909399; }
+.stat-lbl { display: block; font-size: 12px; color: var(--text-secondary); }
+.stat-num { display: block; font-size: 16px; font-weight: 600; color: var(--text-primary); margin-top: 2px; }
+.indicator-footer { margin-top: 10px; font-size: 12px; color: var(--text-secondary); }
 
 /* Histogram */
-.histo-summary { display: flex; gap: 8px; margin-top: 12px; justify-content: center; }
+.histo-summary { display: flex; gap: 8px; margin-top: 12px; justify-content: center; flex-wrap: wrap; }
 
 /* Raw data */
-.raw-toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.raw-toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
 .suspicious-cell { color: #f56c6c; font-weight: 600; }
 </style>

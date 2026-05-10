@@ -274,6 +274,6 @@ onMounted(() => {
 .filter-bar { margin-bottom: 0; }
 .filter-bar :deep(.el-card__body) { padding: 10px 16px; }
 .pagination-row { display: flex; justify-content: space-between; align-items: center; margin-top: 16px; }
-.total-text { font-size: 13px; color: #909399; }
+.total-text { font-size: 13px; color: var(--text-secondary); }
 .drawer-actions { display: flex; gap: 8px; }
 </style>

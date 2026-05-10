@@ -113,36 +113,81 @@ async function handleSubmit() {
   align-items: center;
   justify-content: center;
   background: linear-gradient(135deg, #1a3a5c 0%, #2d5f8a 50%, #409eff 100%);
+  position: relative;
+  overflow: hidden;
 }
+
+.login-page::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(ellipse at 30% 40%, rgba(255,255,255,0.06) 0%, transparent 60%),
+              radial-gradient(ellipse at 70% 60%, rgba(64,158,255,0.08) 0%, transparent 50%);
+  pointer-events: none;
+}
+
 .login-card {
   width: 420px;
   padding: 40px;
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-radius: 28px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  animation: glassFadeInUp 0.5s ease;
+  position: relative;
+  z-index: 1;
 }
+
 .login-header {
   text-align: center;
   margin-bottom: 28px;
 }
+
 .login-logo {
   width: 64px; height: 64px;
   margin: 0 auto 12px;
   background: linear-gradient(135deg, #1a3a5c, #409eff);
-  border-radius: 16px;
+  border-radius: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
   color: #fff;
+  box-shadow: 0 8px 24px rgba(64, 158, 255, 0.3);
 }
+
 .login-header h2 {
-  font-size: 18px; color: #303133; margin-bottom: 4px;
+  font-size: 18px; color: var(--text-primary); margin-bottom: 4px;
 }
-.login-header p { font-size: 13px; color: #909399; }
+
+.login-header p { font-size: 13px; color: var(--text-secondary); }
+
 .login-footer {
   text-align: center;
-  font-size: 13px; color: #909399;
+  font-size: 13px; color: var(--text-secondary);
 }
+
+.login-footer :deep(.el-button) {
+  font-size: 13px;
+}
+
 .login-hint { margin-top: 12px; }
-.login-hint p { text-align: center; font-size: 12px; color: #c0c4cc; }
+.login-hint p { text-align: center; font-size: 12px; color: var(--text-muted); }
+
+.login-card :deep(.el-input__wrapper) {
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 16px;
+  padding: 4px 16px;
+}
+
+.login-card :deep(.el-button--primary) {
+  border-radius: 20px;
+  height: 44px;
+  font-size: 15px;
+  box-shadow: 0 4px 16px rgba(64, 158, 255, 0.3);
+}
 </style>

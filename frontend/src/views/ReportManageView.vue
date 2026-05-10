@@ -282,10 +282,11 @@ onMounted(async () => {
 .report-manage { max-width: 1500px; margin: 0 auto; }
 .task-detail-card {
   margin-top: 16px;
-  padding: 12px;
-  background: #f5f7fa;
-  border-radius: 8px;
-  border: 1px solid #e4e7ed;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(8px);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
 }
 .fade-enter-active, .fade-leave-active { transition: opacity 0.3s; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }

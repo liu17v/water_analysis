@@ -11,8 +11,8 @@
       </template>
       <el-row :gutter="20" style="margin-bottom:20px">
         <el-col :span="6" v-for="card in statCards" :key="card.label">
-          <el-card shadow="hover" class="stat-card" @click="card.onClick">
-            <div class="stat-icon" :style="{background:card.bg}">
+          <el-card shadow="hover" class="stat-card glass-fade-in" @click="card.onClick">
+            <div class="stat-icon" :style="{background:card.bg + '88'}">
               <el-icon :size="28" :color="card.color"><component :is="card.icon" /></el-icon>
             </div>
             <div class="stat-info">
@@ -273,24 +273,26 @@ onUnmounted(() => {
 
 <style scoped>
 .dashboard { max-width: 1500px; margin: 0 auto; }
-.stat-card { cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; }
-.stat-card:hover { transform: translateY(-2px); }
+.stat-card { cursor: pointer; transition: transform 0.25s ease, box-shadow 0.25s ease; }
+.stat-card:hover { transform: translateY(-3px); }
 .stat-card :deep(.el-card__body) {
   display: flex; align-items: center; gap: 16px; width: 100%;
 }
 .stat-icon {
-  width: 56px; height: 56px; border-radius: 12px;
+  width: 56px; height: 56px; border-radius: 16px;
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
 .stat-value { font-size: 28px; font-weight: 700; line-height: 1.2; }
-.stat-label { font-size: 13px; color: #909399; margin-top: 2px; }
+.stat-label { font-size: 13px; color: var(--text-secondary); margin-top: 2px; }
 
 .anomaly-feed { display: flex; flex-direction: column; gap: 8px; max-height: 220px; overflow-y: auto; }
 .anomaly-item {
-  display: flex; align-items: center; gap: 10px; padding: 8px 12px;
-  background: #fafafa; border-radius: 6px; font-size: 13px;
+  display: flex; align-items: center; gap: 10px; padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.4); border-radius: 12px; font-size: 13px;
+  transition: background 0.2s;
 }
-.anomaly-ind { font-weight: 600; color: #303133; min-width: 48px; }
+.anomaly-item:hover { background: rgba(255, 255, 255, 0.6); }
+.anomaly-ind { font-weight: 600; color: var(--text-primary); min-width: 48px; }
 .anomaly-val { color: #f56c6c; }
-.anomaly-depth { color: #909399; }
+.anomaly-depth { color: var(--text-secondary); }
 </style>

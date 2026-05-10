@@ -262,19 +262,22 @@ onMounted(fetchData)
 .filter-bar :deep(.el-card__body) { padding: 12px 16px; }
 
 .pagination-row { display: flex; justify-content: space-between; align-items: center; margin-top: 16px; }
-.total-text { font-size: 13px; color: #909399; }
+.total-text { font-size: 13px; color: var(--text-secondary); }
 
 .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-top: 12px; }
-.task-card { cursor: pointer; transition: transform 0.2s; }
+.task-card { cursor: pointer; transition: all 0.3s ease; animation: glassFadeInUp 0.4s ease both; }
+.task-card:nth-child(2) { animation-delay: 0.05s; }
+.task-card:nth-child(3) { animation-delay: 0.10s; }
+.task-card:nth-child(4) { animation-delay: 0.15s; }
 .task-card:hover { transform: translateY(-3px); }
 .card-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-.card-id { font-size: 12px; color: #909399; font-family: monospace; }
-.card-name { font-size: 16px; font-weight: 600; color: #303133; margin-bottom: 4px; }
-.card-file { font-size: 12px; color: #909399; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card-id { font-size: 12px; color: var(--text-secondary); font-family: monospace; }
+.card-name { font-size: 16px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px; }
+.card-file { font-size: 12px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .card-stat { text-align: center; }
-.card-num { font-size: 20px; font-weight: 700; color: #303133; }
+.card-num { font-size: 20px; font-weight: 700; color: var(--text-primary); }
 .card-num.red { color: #f56c6c; }
 .card-num.small { font-size: 14px; }
-.card-lbl { font-size: 11px; color: #c4c4cc; }
+.card-lbl { font-size: 11px; color: var(--text-muted); }
 .card-empty { grid-column: 1 / -1; }
 </style>

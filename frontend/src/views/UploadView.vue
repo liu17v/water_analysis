@@ -217,12 +217,19 @@ onMounted(() => {
 <style scoped>
 .upload-view { max-width: 1400px; margin: 0 auto; }
 .upload-zone {
-  border: 2px dashed #d9d9d9;
-  border-radius: 12px;
+  border: 2px dashed rgba(64, 158, 255, 0.25);
+  border-radius: 24px;
   padding: 24px 40px 40px;
   text-align: center;
-  transition: border-color 0.3s;
-  background: #fafafa;
+  transition: all 0.3s ease;
+  background: rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.upload-zone:hover {
+  border-color: rgba(64, 158, 255, 0.5);
+  background: rgba(255, 255, 255, 0.55);
+  box-shadow: 0 4px 24px rgba(64, 158, 255, 0.08);
 }
 .reservoir-input-wrapper {
   display: flex;
@@ -233,10 +240,10 @@ onMounted(() => {
 }
 .input-label {
   font-size: 14px;
-  color: #606266;
+  color: var(--text-primary);
   white-space: nowrap;
   font-weight: 500;
 }
-.drop-text { font-size: 16px; color: #606266; margin: 16px 0 8px; }
-.drop-hint { font-size: 13px; color: #c0c4cc; }
+.drop-text { font-size: 16px; color: var(--text-primary); margin: 16px 0 8px; }
+.drop-hint { font-size: 13px; color: var(--text-secondary); }
 </style>
